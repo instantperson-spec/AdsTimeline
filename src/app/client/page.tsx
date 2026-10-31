@@ -12,8 +12,8 @@ import { ClientPortalView } from '@/components/ClientPortalView';
 import { ClientTimelineListView } from '@/components/ClientTimelineListView';
 import { AdPreviewModal } from '@/components/AdPreviewModal';
 
-const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v5';
-const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v5';
+const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v6';
+const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v6';
 
 const FAITH_WORLD_TV = 'Faith World TV';
 

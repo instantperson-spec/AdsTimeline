@@ -14,8 +14,8 @@ import { NewAdModal } from '@/components/NewAdModal';
 import { NewShowModal } from '@/components/NewShowModal';
 import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 
-const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v5';
-const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v5';
+const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v6';
+const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v6';
 
 const FAITH_WORLD_TV = 'Faith World TV';
 

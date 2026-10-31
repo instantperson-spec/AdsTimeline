@@ -1,6 +1,7 @@
 {
   "name": "ads-timeline",
   "version": "0.1.0",
+  "description": "Faith World TV commercial schedule and pull-by tracker for Instant Productions",
   "private": true,
   "scripts": {
     "dev": "next dev",

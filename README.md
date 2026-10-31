@@ -1,67 +1,96 @@
-# Ads Timeline & Commercial Expiration Tracker 📺
-### System Zarządzania Ramówką Reklamową & Monitorowania Dat Ważności Spotów Time-Sensitive
+# Ads Timeline — Instant Productions
 
-Aplikacja stworzona dla **Instant Productions** do planowania, prezentacji i śledzenia horyzontu czasowego (flight dates) dla reklam telewizyjnych.
+Commercial schedule and **pull-by date** tracker for **Faith World TV**, built for **Instant Productions**.
 
-Głównym celem systemu jest **precyzyjne monitorowanie kiedy zdjąć reklamę z ramówki**, aby nie dopuścić do wyemitowania przeterminowanego materiału (np. zwiastuna trasy koncertowej, której termin już minął).
-
----
-
-## 🚀 Kluczowe Funkcjonalności
-
-### 1. Show & Break Structure (Audycje & Bloki Reklamowe)
-* **Przykład wdrożeniowy: Show 1. Ireland West Music TV**
-  * Posiada 3 dedykowane przerwy reklamowe (Break 1, Break 2, Break 3).
-  * Każda przerwa zawiera poszczególne sloty reklamowe (Slot 1, Slot 2...).
-* Obsługa wielu audycji jednocześnie (np. *Ireland West Music TV*, *Country Music Spotlight*, *Celtic Sessions Live*) lub filtrowanie do pojedynczego programu.
-* Możliwość dynamicznego dodawania i usuwania programów TV (`+ Nowy Show`).
-
-### 2. Time-Sensitive Expiration Radar (Centrum Zdejmowania Reklam)
-* Automatyczne wyliczanie statusu na podstawie daty końcowej (`endDate`):
-  * 🔴 **Przeterminowana (Expired)**: data końcowa minęła (np. koncert odbył się wczoraj) — **czerwony alarm dźwiękowo-wizualny** nakazujący natychmiastowe zdjęcie z ramówki przed kolejną emisją.
-  * 🟡 **Wygasająca (Expiring Soon)**: pozostało $\le 5$ dni do końca — ostrzeżenie dla traffic managera, aby przygotować podmianę materiału.
-  * 🟢 **Aktywna (Active)**: spot w bezpiecznym oknie czasowym.
-  * ⚪ **Zdjęta z anteny (Taken Off)**: zarchiwizowana z adnotacją o zrealizowanej podmianie (np. wstawiony zwiastun stacji).
-* Akcja jednym kliknięciem: **„Zdejmij z anteny (Podmień)”** z polem na wpisanie materiału zastępczego (np. *„Zastąpiono zwiastunem stacji IWMTV 30s”*).
-
-### 3. Cztery Tryby Prezentacji (Widoki)
-1. **Oś Czasu (Gantt Timeline)**:
-   * Pozioma oś czasu z paskami emisji dla każdego bloku reklamowego.
-   * Widoczny znacznik **„DZIŚ”** oraz dynamiczne wskaźniki odliczania (*„Zostało: 3 dni”*, *„Przeterminowana 1 dzień temu!”*).
-   * Skalowanie horyzontu (14 dni, 30 dni, 45 dni).
-2. **Bloki Reklamowe (Matrix)**:
-   * Przegląd per blok (Break 1, Break 2, Break 3) z kafelkami spotów, klatką z wideo, łącznym czasem trwania i przyciskiem szybkiego wstawiania spotu do danego bloku.
-3. **Kalendarz Emisji (Monthly Calendar)**:
-   * Widok miesięczny z flagami dni końcowych spotów (🚩 termin zdjęcia) oraz podglądem emisji w wybranym dniu.
-4. **Centrum Zdejmowania (Urgent Radar)**:
-   * Dedykowana tablica krytyczna filtrująca wyłącznie materiały wygasające i przeterminowane.
-
-### 4. Podgląd Wideo & Klatek (20-30s H.264 HD)
-* Każda reklama posiada klatkę z wideo (frame grab) oraz odtwarzacz wideo proxy (20-30s H.264 HD) z pełną kontrolą odtwarzania.
-* Możliwość wgrywania własnych plików MP4 lub grafik klatek z poziomu przeglądarki.
-
-### 5. Traffic Cue Sheet (Rozpiska dla Reżyserki / MCR)
-* Generowanie oficjalnej rozpiski emisyjnej dla Master Control Room (MCR) z wykazem bloków, slotów, kodów czasowych i dyspozycji podmiany.
-* Gotowość do druku (PDF / Print layout) oraz eksport do arkusza CSV.
+The app helps traffic and production control **when each spot must leave the air** (concert tours, festivals, time-sensitive promos) and gives publishers a **read-only client link** without admin controls.
 
 ---
 
-## 🛠️ Uruchomienie Lokalne & Wdrożenie na Vercel
+## Programmes (seed data)
 
-### Uruchomienie lokalne:
+On first load (no saved data in the browser), two real programmes are created:
+
+| Code   | Programme                 | Schedule                         | Breaks |
+|--------|---------------------------|----------------------------------|--------|
+| IWMTV  | Ireland West Music TV     | Wednesdays 22:00 GMT             | 3      |
+| MCS    | The Michael Commins Show  | Wednesdays 23:00 GMT             | 2      |
+
+**No demo commercials** are shipped — add spots in the admin **Edit panel**.
+
+---
+
+## Features
+
+### Admin (`/`)
+
+- **Sidebar:** Cards & schedule, Full timeline (Gantt), Edit panel (breaks / slots / Pull & Restore).
+- **Shows:** filter all programmes or one show; add show, add ad, MCR cue sheet.
+- **Client link:** choose programme (or all), spot list and/or timeline; copy URL for the publisher.
+- **Ad preview:** video + frame grab (URLs or file pick — blob/Neon planned for production).
+
+### Client (`/client`)
+
+Read-only view driven **only** by the link the admin generates:
+
+| Query    | Values |
+|----------|--------|
+| `show`   | `all`, `IWMTV`, `MCS`, or internal show id |
+| `view`   | `list`, `timeline`, or `list,timeline` (tabs when both) |
+
+Example: `/client?show=IWMTV&view=list,timeline`
+
+---
+
+## Tech stack
+
+- **Next.js 16** (App Router), React 19, Tailwind CSS v4
+- **Persistence (current):** browser `localStorage` keys `instant_ads_timeline_*_v6`
+- **Planned production:** Neon Postgres (metadata) + Vercel Blob (media)
+
+Sample MP4/Unsplash demo assets are **not** included. Placeholder poster: `/placeholder-poster.svg`.
+
+---
+
+## Local development
+
 ```bash
-cd "/Volumes/ENV/INSTANT PRODUCTIONS/Ads_timeline"
+git clone https://github.com/instantperson-spec/AdsTimeline.git
+cd AdsTimeline
+npm install
 npm run dev
 ```
-Aplikacja uruchomi się domyślnie pod adresem `http://localhost:3000`.
 
-### Budowanie produkcyjne:
+Open [http://localhost:3000](http://localhost:3000) (admin) and [http://localhost:3000/client?show=all&view=list](http://localhost:3000/client?show=all&view=list) (client).
+
 ```bash
-npm run build
+npm run build   # production build
+npm start       # run production server locally
 ```
 
-### Wdrożenie na Vercel:
-Aplikacja jest w 100% zoptymalizowana pod Vercel (Next.js 16 App Router, Turbopack, Tailwind CSS v4):
-1. Zaloguj się do CLI Vercel: `npx vercel`
-2. Lub połącz repozytorium GitHub w panelu [vercel.com](https://vercel.com).
+---
 
+## Deploy on Vercel
+
+1. Import [github.com/instantperson-spec/AdsTimeline](https://github.com/instantperson-spec/AdsTimeline) in the Vercel dashboard, **or**:
+2. From the project directory: `npx vercel --prod` (use project name e.g. `ads-timeline` if the folder path contains spaces).
+
+Framework preset: **Next.js**. No environment variables required for the current localStorage build.
+
+---
+
+## Repository layout
+
+```
+src/app/page.tsx          Admin application
+src/app/client/page.tsx   Client portal (URL params)
+src/lib/mock-data.ts      Real programmes only; empty ads
+src/lib/client-portal-url.ts   Client link builders
+src/components/           UI (timeline, edit matrix, modals)
+```
+
+---
+
+## License & contact
+
+Private project for **Instant Productions** / **Faith World TV**.  
+Questions: Instant Productions traffic / production contact.
