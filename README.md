@@ -23,6 +23,7 @@ On first load (no saved data in the browser), two real programmes are created:
 
 ### Admin (`/`)
 
+- **Sign in:** `/login` with `ADMIN_PASSWORD` (session cookie, 7 days). Client `/client` stays public.
 - **Sidebar:** Cards & schedule, Full timeline (Gantt), Edit panel (breaks / slots / Pull & Restore).
 - **Shows:** filter all programmes or one show; add show, add ad, MCR cue sheet.
 - **Client link:** choose programme (or all), spot list and/or timeline; copy URL for the publisher.
@@ -70,6 +71,8 @@ Copy `.env.example` to `.env.local` and set:
 |----------|---------|
 | `DATABASE_URL` | Neon Postgres connection string (pooled recommended) |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token (for media uploads) |
+| `ADMIN_PASSWORD` | Password for the admin panel (`/` and write APIs) |
+| `SESSION_SECRET` | Random string used to sign admin session cookies |
 
 On first API request the app creates tables and seeds **IWMTV** / **MCS** if the database is empty.
 
@@ -89,7 +92,9 @@ Framework preset: **Next.js**.
 
 1. Create a [Neon](https://neon.tech) project and add **`DATABASE_URL`** to the Vercel project (Production + Preview).
 2. In Vercel → **Storage** → create a **Blob** store linked to `ads-timeline`; **`BLOB_READ_WRITE_TOKEN`** is added automatically.
-3. Redeploy. Optionally disable **Deployment Protection** if client links must work without Vercel login.
+3. Set **`ADMIN_PASSWORD`** and **`SESSION_SECRET`** on Vercel.
+4. Disable **Vercel Authentication** (Deployment Protection) on the project so `/client` works without a Vercel login — admin remains protected by app password.
+5. Redeploy after env changes.
 
 ---
 

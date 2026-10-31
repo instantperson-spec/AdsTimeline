@@ -9,6 +9,7 @@ import {
   TvMinimalPlay,
   Trash2,
   Link2,
+  LogOut,
 } from 'lucide-react';
 import { AdminNavView, CommercialShow } from '@/types/timeline';
 import { ClientLinkModal } from '@/components/ClientLinkModal';
@@ -38,6 +39,17 @@ export function Header({
 }: HeaderProps) {
   const currentShow = shows.find((s) => s.id === selectedShowId);
   const [clientLinkOpen, setClientLinkOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   const clientLinkInitialViews =
     adminView === 'gantt' ? (['timeline'] as const) : (['list'] as const);
@@ -93,6 +105,17 @@ export function Header({
           >
             <Plus className="w-4 h-4 shrink-0" />
             <span>Ad</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            title="Sign out"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 text-sm font-medium text-zinc-100 hover:bg-zinc-700 disabled:opacity-60"
+          >
+            <LogOut className="w-4 h-4 text-zinc-400 shrink-0" />
+            <span className="hidden sm:inline">{loggingOut ? '…' : 'Sign out'}</span>
           </button>
         </div>
       </div>
