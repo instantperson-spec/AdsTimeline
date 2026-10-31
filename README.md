@@ -28,6 +28,7 @@ On first load (no saved data in the browser), two real programmes are created:
 - **Shows:** filter all programmes or one show; add show, add ad, MCR cue sheet.
 - **Client link:** choose programme (or all), spot list and/or timeline; copy URL for the publisher.
 - **Ad preview:** video + frame grab (URLs or file pick — blob/Neon planned for production).
+- **Spot types:** **Permanent / recurrent** sponsor (no dates) vs **time-sensitive flight** (start + end on air, pull alerts on end date).
 
 ### Client (`/client`)
 

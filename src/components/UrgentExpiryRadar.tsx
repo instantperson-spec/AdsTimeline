@@ -197,14 +197,14 @@ export function UrgentExpiryRadar({
           <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-500/60" />
           <h4 className="text-base font-bold text-zinc-200 mb-1">Clean log!</h4>
           <p className="text-xs text-zinc-400 max-w-md mx-auto">
-            No ads in this category need immediate action.
+            No ads need immediate action.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {displayedAds.map((ad) => {
             const show = shows.find((s) => s.id === ad.showId);
-            const daysInfo = formatDaysRemainingText(ad.endDate);
+            const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
             const isExpired = ad.status === 'expired';
             const isTakenOff = !!ad.takenOffAt;
 
@@ -267,10 +267,6 @@ export function UrgentExpiryRadar({
                       <div className="flex items-center space-x-2 text-[11px] text-zinc-400 mb-0.5">
                         <span className="font-semibold text-zinc-300 truncate">
                           {ad.advertiser}
-                        </span>
-                        <span>&bull;</span>
-                        <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 font-medium">
-                          {ad.category}
                         </span>
                       </div>
 

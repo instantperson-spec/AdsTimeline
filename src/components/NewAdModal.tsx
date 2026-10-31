@@ -2,8 +2,10 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { X, Plus, Pencil, Calendar, Film, Upload, Check } from 'lucide-react';
-import { CommercialAd, CommercialShow, AdCategory } from '@/types/timeline';
-import { computeAdStatus } from '@/lib/date-utils';
+import { CommercialAd, CommercialShow } from '@/types/timeline';
+import { computeAdStatus, getTodayString } from '@/lib/date-utils';
+import { hasFlightWindow, recurrentFlightStorageDates } from '@/lib/ad-flight';
+import { readVideoDurationSec } from '@/lib/media-duration';
 import { uploadMediaFile } from '@/lib/timeline-api';
 
 interface NewAdModalProps {
@@ -16,15 +18,6 @@ interface NewAdModalProps {
   onCreateAd: (ad: CommercialAd) => void | Promise<void>;
   onUpdateAd?: (ad: CommercialAd) => void | Promise<void>;
 }
-
-const CATEGORIES: AdCategory[] = [
-  'Concert Tour',
-  'Festival',
-  'Album Launch',
-  'Local Business',
-  'Station Promo',
-  'Special Event',
-];
 
 export function NewAdModal({
   isOpen,
@@ -44,18 +37,17 @@ export function NewAdModal({
   const [slotIndex, setSlotIndex] = useState(1);
   const [title, setTitle] = useState('');
   const [advertiser, setAdvertiser] = useState('');
-  const [category, setCategory] = useState<AdCategory>('Concert Tour');
   const [durationSec, setDurationSec] = useState(30);
-  const [startDate, setStartDate] = useState('2026-10-25');
+  const [startDate, setStartDate] = useState(getTodayString());
   const [endDate, setEndDate] = useState('2026-11-10');
-  const [isTimeSensitive, setIsTimeSensitive] = useState(true);
+  const [isTimeSensitive, setIsTimeSensitive] = useState(false);
   const [eventDate, setEventDate] = useState('');
-  const [replacementAction, setReplacementAction] = useState('Replace with universal station filler after expiry.');
   const [frameGrabUrl, setFrameGrabUrl] = useState('/placeholder-poster.svg');
   const [videoUrl, setVideoUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [durationFromFile, setDurationFromFile] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,16 +58,20 @@ export function NewAdModal({
       setSlotIndex(editAd.slotIndex);
       setTitle(editAd.title);
       setAdvertiser(editAd.advertiser);
-      setCategory(editAd.category);
       setDurationSec(editAd.durationSec);
-      setStartDate(editAd.startDate);
-      setEndDate(editAd.endDate);
       setIsTimeSensitive(editAd.isTimeSensitive);
+      if (hasFlightWindow(editAd)) {
+        setStartDate(editAd.startDate);
+        setEndDate(editAd.endDate);
+      } else {
+        setStartDate(getTodayString());
+        setEndDate('');
+      }
       setEventDate(editAd.eventDate || '');
-      setReplacementAction(editAd.replacementAction);
       setFrameGrabUrl(editAd.frameGrabUrl);
       setVideoUrl(editAd.videoUrl || '');
       setNotes(editAd.notes || '');
+      setDurationFromFile(false);
       return;
     }
 
@@ -107,6 +103,14 @@ export function NewAdModal({
     setUploadError(null);
     setUploading(true);
     try {
+      if (file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mp4')) {
+        const fromFile = await readVideoDurationSec(file);
+        if (fromFile != null) {
+          setDurationSec(fromFile);
+          setDurationFromFile(true);
+        }
+      }
+
       const { url } = await uploadMediaFile(file);
       if (file.type.startsWith('video/')) {
         setVideoUrl(url);
@@ -126,6 +130,12 @@ export function NewAdModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !advertiser.trim()) return;
+    const duration = Math.min(600, Math.max(1, Math.round(durationSec) || 30));
+
+    const flight = isTimeSensitive
+      ? { startDate: startDate.trim(), endDate: endDate.trim() }
+      : recurrentFlightStorageDates();
+    if (isTimeSensitive && (!flight.startDate || !flight.endDate)) return;
 
     const payload: CommercialAd = {
       id: editAd?.id || `ad-${Date.now()}`,
@@ -135,15 +145,14 @@ export function NewAdModal({
       slotIndex,
       title: title.trim(),
       advertiser: advertiser.trim(),
-      category,
-      durationSec,
-      startDate,
-      endDate,
+      durationSec: duration,
+      startDate: flight.startDate,
+      endDate: flight.endDate,
       frameGrabUrl: frameGrabUrl.trim() || '/placeholder-poster.svg',
       videoUrl: videoUrl.trim() || undefined,
       isTimeSensitive,
       eventDate: eventDate.trim() || undefined,
-      replacementAction: replacementAction.trim() || 'Replace with station promo.',
+      replacementAction: editAd?.replacementAction ?? '',
       notes: notes.trim() || undefined,
       status: editAd?.status || 'active',
       takenOffAt: editAd?.takenOffAt,
@@ -169,6 +178,7 @@ export function NewAdModal({
       setTitle('');
       setAdvertiser('');
       setEventDate('');
+      setDurationFromFile(false);
     }
   };
 
@@ -180,7 +190,6 @@ export function NewAdModal({
       className="backdrop:bg-black/80 backdrop:backdrop-blur-sm bg-transparent p-0 m-auto max-w-2xl w-full focus:outline-none overscroll-contain"
     >
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-6 text-zinc-100 flex flex-col space-y-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
@@ -188,16 +197,15 @@ export function NewAdModal({
             </div>
             <div>
               <h2 id="new-ad-modal-title" className="text-sm font-bold text-zinc-100">
-                {isEditMode ? 'Edit commercial spot' : 'Add new ad / time-sensitive spot'}
+                {isEditMode ? 'Edit commercial spot' : 'Add new ad'}
               </h2>
               <p className="text-[11px] text-zinc-400">
-                {isEditMode
-                  ? 'Update break slot, flight dates, and pull instructions'
-                  : 'Set break slot and flight dates to control when the spot must be pulled'}
+                Break slot, flight dates, and media preview
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white"
           >
@@ -205,14 +213,10 @@ export function NewAdModal({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {/* Show & Break selection */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-zinc-300 font-semibold mb-1">
-                TV show *
-              </label>
+              <label className="block text-zinc-300 font-semibold mb-1">TV show *</label>
               <select
                 value={showId}
                 onChange={(e) => setShowId(e.target.value)}
@@ -227,9 +231,7 @@ export function NewAdModal({
             </div>
 
             <div>
-              <label className="block text-zinc-300 font-semibold mb-1">
-                Commercial break *
-              </label>
+              <label className="block text-zinc-300 font-semibold mb-1">Commercial break *</label>
               <select
                 value={breakNumber}
                 onChange={(e) => setBreakNumber(parseInt(e.target.value))}
@@ -244,13 +246,11 @@ export function NewAdModal({
             </div>
 
             <div>
-              <label className="block text-zinc-300 font-semibold mb-1">
-                Slot position
-              </label>
+              <label className="block text-zinc-300 font-semibold mb-1">Slot position</label>
               <select
                 value={slotIndex}
                 onChange={(e) => setSlotIndex(parseInt(e.target.value))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
+                className="w-full bg-z-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
               >
                 <option value={1}>Slot 1 (Opens break)</option>
                 <option value={2}>Slot 2</option>
@@ -260,12 +260,9 @@ export function NewAdModal({
             </div>
           </div>
 
-          {/* Title & Advertiser */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-300 font-semibold mb-1">
-                Ad name / spot title *
-              </label>
+              <label className="block text-zinc-300 font-semibold mb-1">Ad name / spot title *</label>
               <input
                 type="text"
                 value={title}
@@ -291,79 +288,39 @@ export function NewAdModal({
             </div>
           </div>
 
-          {/* Category & Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-zinc-300 font-semibold mb-1">
-                Ad category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as AdCategory)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-zinc-300 font-semibold mb-1">
-                Spot duration
-              </label>
-              <select
+          <div>
+            <label className="block text-zinc-300 font-semibold mb-1">Spot duration (seconds)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={600}
+                step={1}
                 value={durationSec}
-                onChange={(e) => setDurationSec(parseInt(e.target.value))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
-              >
-                <option value={15}>15 seconds</option>
-                <option value={20}>20 seconds</option>
-                <option value={30}>30 seconds (standard)</option>
-                <option value={45}>45 seconds</option>
-                <option value={60}>60 seconds</option>
-              </select>
+                onChange={(e) => {
+                  setDurationFromFile(false);
+                  setDurationSec(parseInt(e.target.value, 10) || 0);
+                }}
+                className="w-28 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
+                required
+              />
+              <span className="text-zinc-500">s</span>
+              {durationFromFile && (
+                <span className="text-[11px] text-emerald-400/90">From uploaded video</span>
+              )}
             </div>
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Type manually or upload an MP4 — duration is read from the file when possible.
+            </p>
           </div>
 
-          {/* Critical Flight Dates: Start -> End Date (When to take off!) */}
           <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
             <div className="flex items-center space-x-2 text-amber-400 font-bold">
               <Calendar className="w-4 h-4" />
-              <span>On-air flight dates</span>
+              <span>Spot type</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-zinc-400 text-[11px] mb-1">
-                  Start date (on air from)
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-rose-300 font-bold text-[11px] mb-1">
-                  PULL DATE (take off air by!) *
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full bg-zinc-900 border border-rose-500/70 rounded-lg px-3 py-1.5 text-rose-200 focus:outline-none focus:border-rose-400 font-mono font-bold"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 pt-1">
+            <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
                 id="isTimeSensitive"
@@ -372,41 +329,63 @@ export function NewAdModal({
                 className="rounded border-zinc-700 text-indigo-600 focus:ring-0 w-4 h-4"
               />
               <label htmlFor="isTimeSensitive" className="text-zinc-300 font-medium">
-                Time-sensitive ad (e.g. fixed concert or festival date)
+                Time-sensitive flight (e.g. concert tour — start and end on air)
               </label>
             </div>
 
-            {isTimeSensitive && (
-              <div>
-                <label className="block text-zinc-400 text-[11px] mb-1">
-                  Event date & venue (visible to traffic manager)
-                </label>
-                <input
-                  type="text"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  placeholder="e.g. 15 November 2026 — TF Royal Hotel Castlebar"
-                  className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-3 py-1.5 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
+            {!isTimeSensitive ? (
+              <p className="text-xs text-sky-300/90 leading-snug">
+                Permanent / recurrent sponsor spot — fixed break slot, no start or pull date (e.g.
+                station promo).
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-zinc-400 leading-snug">
+                  Set the on-air window, e.g. 4 January through 7 March. Pull alerts use the end
+                  date.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-zinc-400 text-[11px] mb-1">
+                      Start date (on air from) *
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
+                      required={isTimeSensitive}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-rose-300 font-bold text-[11px] mb-1">
+                      End date (pull from air by) *
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full bg-zinc-900 border border-rose-500/70 rounded-lg px-3 py-1.5 text-rose-200 focus:outline-none focus:border-rose-400 font-mono font-bold"
+                      required={isTimeSensitive}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-zinc-400 text-[11px] mb-1">
+                    Event note (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    placeholder="e.g. Castlebar dates — TF Royal 15 Nov"
+                    className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-3 py-1.5 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </>
             )}
           </div>
 
-          {/* Replacement Action Instruction */}
-          <div>
-            <label className="block text-zinc-300 font-semibold mb-1">
-              Replacement after expiry (what to run after pull date?)
-            </label>
-            <input
-              type="text"
-              value={replacementAction}
-              onChange={(e) => setReplacementAction(e.target.value)}
-              placeholder="e.g. Swap to IWMTV station promo 30s immediately after 5 November"
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-
-          {/* Video Proxy & Frame Grab Upload */}
           <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-zinc-300 flex items-center space-x-1.5">
@@ -425,9 +404,7 @@ export function NewAdModal({
               </label>
             </div>
 
-            {uploadError && (
-              <p className="text-xs text-rose-400">{uploadError}</p>
-            )}
+            {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
               <div>
@@ -451,7 +428,6 @@ export function NewAdModal({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-zinc-800">
             <button
               type="button"
@@ -473,4 +449,3 @@ export function NewAdModal({
     </dialog>
   );
 }
-

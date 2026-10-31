@@ -661,7 +661,7 @@ export function ClientTimelineScreen({
                         ) : (
                           breakAds.map((ad) => {
                             const barPos = calculateBarPixels(ad.startDate, ad.endDate);
-                            const daysInfo = formatDaysRemainingText(ad.endDate);
+                            const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
                             const isExpired = ad.status === 'expired';
                             const isExpiring = ad.status === 'expiring_soon';
                             const isTakenOff = !!ad.takenOffAt;
@@ -707,9 +707,6 @@ export function ClientTimelineScreen({
                                       <div className="flex items-center space-x-1.5 mb-0.5">
                                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-850 text-indigo-300 font-bold border border-zinc-750">
                                           Slot #{ad.slotIndex}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 truncate">
-                                          {ad.category}
                                         </span>
                                       </div>
 

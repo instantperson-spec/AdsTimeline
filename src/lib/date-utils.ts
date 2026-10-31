@@ -1,4 +1,15 @@
 import { CommercialAd, AdStatus } from '@/types/timeline';
+import { hasFlightWindow, isRecurrentAd } from '@/lib/ad-flight';
+
+/** Time-sensitive flights use start/end dates and pull-by alerts. */
+export function tracksPullDeadline(ad: Pick<CommercialAd, 'isTimeSensitive'>): boolean {
+  return hasFlightWindow(ad);
+}
+
+/** @deprecated Use isRecurrentAd from ad-flight */
+export function isOngoingSpot(ad: Pick<CommercialAd, 'isTimeSensitive'>): boolean {
+  return isRecurrentAd(ad);
+}
 
 /**
  * Computes dynamic status based on the current reference date
@@ -6,6 +17,10 @@ import { CommercialAd, AdStatus } from '@/types/timeline';
 export function computeAdStatus(ad: CommercialAd, referenceDate: Date = new Date()): AdStatus {
   if (ad.takenOffAt) {
     return 'taken_off';
+  }
+
+  if (isRecurrentAd(ad)) {
+    return 'active';
   }
 
   const refTime = referenceDate.getTime();
@@ -41,13 +56,23 @@ export function getDaysRemaining(endDateStr: string, referenceDate: Date = new D
 
 export function formatDaysRemainingText(
   endDateStr: string,
-  referenceDate: Date = new Date('2026-10-31T00:00:00')
+  referenceDate: Date = new Date('2026-10-31T00:00:00'),
+  ad?: Pick<CommercialAd, 'isTimeSensitive'>
 ): {
   text: string;
   badgeClass: string;
   isUrgent: boolean;
   isExpired: boolean;
 } {
+  if (ad && isRecurrentAd(ad)) {
+    return {
+      text: 'Permanent sponsor spot',
+      badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/30 font-bold',
+      isUrgent: false,
+      isExpired: false,
+    };
+  }
+
   const days = getDaysRemaining(endDateStr, referenceDate);
 
   if (days < 0) {
@@ -115,6 +140,11 @@ export function formatShortDate(dateStr: string): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const y = date.getFullYear();
   return `${d}/${m}/${y}`;
+}
+
+export function formatFlightRange(ad: CommercialAd): string | null {
+  if (isRecurrentAd(ad)) return null;
+  return `${formatShortDate(ad.startDate)} – ${formatShortDate(ad.endDate)}`;
 }
 
 export function getTodayString(): string {

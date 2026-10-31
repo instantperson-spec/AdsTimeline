@@ -3,7 +3,8 @@
 import React, { useMemo } from 'react';
 import { Layers, Play } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
-import { formatDateDisplay, formatDaysRemainingText } from '@/lib/date-utils';
+import { formatDaysRemainingText, formatFlightRange, tracksPullDeadline } from '@/lib/date-utils';
+import { isRecurrentAd } from '@/lib/ad-flight';
 
 interface ClientPortalViewProps {
   ads: CommercialAd[];
@@ -145,9 +146,10 @@ export function ClientPortalView({
 
                       <div className="space-y-2">
                         {breakAds.map((ad) => {
-                          const days = formatDaysRemainingText(ad.endDate);
+                          const days = formatDaysRemainingText(ad.endDate, undefined, ad);
                           const isUrgent =
-                            ad.status === 'expired' || ad.status === 'expiring_soon';
+                            tracksPullDeadline(ad) &&
+                            (ad.status === 'expired' || ad.status === 'expiring_soon');
 
                           return (
                             <button
@@ -173,10 +175,16 @@ export function ClientPortalView({
                                   {ad.title}
                                 </p>
                                 <p className="text-sm text-zinc-400 mt-1">
-                                  On air until:{' '}
-                                  <span className="text-zinc-200 font-medium">
-                                    {formatDateDisplay(ad.endDate)}
-                                  </span>
+                                  {isRecurrentAd(ad) ? (
+                                    <span className="text-sky-300/90">Permanent sponsor spot</span>
+                                  ) : (
+                                    <>
+                                      On air:{' '}
+                                      <span className="text-zinc-200 font-medium">
+                                        {formatFlightRange(ad)}
+                                      </span>
+                                    </>
+                                  )}
                                 </p>
                               </div>
 

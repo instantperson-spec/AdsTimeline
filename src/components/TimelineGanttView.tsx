@@ -419,7 +419,7 @@ export function TimelineGanttView({
                         ) : (
                           breakAds.map((ad) => {
                             const barPos = calculateBarPixels(ad.startDate, ad.endDate);
-                            const daysInfo = formatDaysRemainingText(ad.endDate);
+                            const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
                             const isExpired = ad.status === 'expired';
                             const isExpiring = ad.status === 'expiring_soon';
                             const isTakenOff = !!ad.takenOffAt;

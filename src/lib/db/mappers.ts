@@ -1,4 +1,4 @@
-import { CommercialAd, CommercialShow, AdCategory, AdStatus } from '@/types/timeline';
+import { CommercialAd, CommercialShow, AdStatus } from '@/types/timeline';
 import { computeAdStatus } from '@/lib/date-utils';
 
 export type ShowRow = {
@@ -71,7 +71,6 @@ export function mapAdRow(row: AdRow): CommercialAd {
     slotIndex: row.slot_index,
     title: row.title,
     advertiser: row.advertiser,
-    category: row.category as AdCategory,
     durationSec: row.duration_sec,
     startDate: toIsoDate(row.start_date),
     endDate: toIsoDate(row.end_date),

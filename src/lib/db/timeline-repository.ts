@@ -3,6 +3,7 @@ import { INITIAL_SHOWS } from '@/lib/mock-data';
 import { getSql } from '@/lib/db/client';
 import { ensureSchema } from '@/lib/db/schema';
 import { mapAdRow, mapShowRow, type AdRow, type ShowRow } from '@/lib/db/mappers';
+import { STORED_AD_CATEGORY } from '@/lib/db/stored-ad-category';
 
 export async function initTimelineData(): Promise<void> {
   const sql = getSql();
@@ -119,7 +120,7 @@ export async function insertAd(ad: CommercialAd): Promise<CommercialAd> {
       ${ad.slotIndex},
       ${ad.title},
       ${ad.advertiser},
-      ${ad.category},
+      ${STORED_AD_CATEGORY},
       ${ad.durationSec},
       ${ad.startDate},
       ${ad.endDate},
@@ -151,7 +152,7 @@ export async function updateAd(ad: CommercialAd): Promise<CommercialAd> {
       slot_index = ${ad.slotIndex},
       title = ${ad.title},
       advertiser = ${ad.advertiser},
-      category = ${ad.category},
+      category = ${STORED_AD_CATEGORY},
       duration_sec = ${ad.durationSec},
       start_date = ${ad.startDate},
       end_date = ${ad.endDate},

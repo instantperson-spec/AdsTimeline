@@ -20,7 +20,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
-import { formatDaysRemainingText, formatDateDisplay } from '@/lib/date-utils';
+import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
 
 interface AdPreviewModalProps {
   ad: CommercialAd | null;
@@ -72,8 +72,8 @@ export function AdPreviewModal({
   if (!ad) return null;
 
   const show = shows.find((s) => s.id === ad.showId);
-  const daysInfo = formatDaysRemainingText(ad.endDate);
-  const isExpired = ad.status === 'expired';
+  const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
+  const isExpired = ad.status === 'expired' && tracksPullDeadline(ad);
   const isTakenOff = !!ad.takenOffAt;
 
   const togglePlay = () => {
@@ -328,19 +328,12 @@ export function AdPreviewModal({
           )}
 
           {!isClientView && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
                 Advertiser
               </span>
               <span className="font-bold text-zinc-200">{ad.advertiser}</span>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Category
-              </span>
-              <span className="font-bold text-zinc-200">{ad.category}</span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">

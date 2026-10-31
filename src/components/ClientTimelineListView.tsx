@@ -565,7 +565,7 @@ export function ClientTimelineListView({
                         ) : (
                           <div className="grid grid-cols-1 gap-4">
                             {breakAds.map((ad) => {
-                              const daysInfo = formatDaysRemainingText(ad.endDate);
+                              const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
                               const isExpired = ad.status === 'expired';
                               const isExpiring = ad.status === 'expiring_soon';
                               const isTakenOff = !!ad.takenOffAt;
@@ -619,9 +619,6 @@ export function ClientTimelineListView({
                                       <div className="flex items-center space-x-2">
                                         <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700/60">
                                           Break {ad.breakNumber} &bull; Slot #{ad.slotIndex}
-                                        </span>
-                                        <span className="text-xs text-zinc-400 font-medium">
-                                          {ad.category}
                                         </span>
                                       </div>
 
@@ -1001,7 +998,7 @@ export function ClientTimelineListView({
 
                           {breakAds.map((ad) => {
                       const barPos = calculateBarPixels(ad.startDate, ad.endDate);
-                      const daysInfo = formatDaysRemainingText(ad.endDate);
+                      const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
                       const isExpired = ad.status === 'expired';
                       const isExpiring = ad.status === 'expiring_soon';
                       const isTakenOff = !!ad.takenOffAt;

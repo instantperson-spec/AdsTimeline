@@ -1,11 +1,3 @@
-export type AdCategory =
-  | 'Concert Tour'
-  | 'Festival'
-  | 'Album Launch'
-  | 'Local Business'
-  | 'Station Promo'
-  | 'Special Event';
-
 export type AdStatus =
   | 'active'        // Currently running on air and safe
   | 'expiring_soon' // Within 3-7 days of expiry deadline (Amber alert)
@@ -21,12 +13,14 @@ export interface CommercialAd {
   slotIndex: number;   // 1, 2, 3… (position within the break)
   title: string;
   advertiser: string;
-  category: AdCategory;
   durationSec: number; // e.g. 20s, 30s
-  startDate: string;   // 'YYYY-MM-DD'
-  endDate: string;     // 'YYYY-MM-DD' — pull-by date
+  /** On-air from (time-sensitive flights only). Recurrent spots use storage placeholders. */
+  startDate: string;
+  /** On-air until / pull-by (time-sensitive flights only). */
+  endDate: string;
   frameGrabUrl: string;
   videoUrl?: string;   // optional 20–30s H.264 preview
+  /** true = dated flight (e.g. tour 4 Jan–7 Mar). false = permanent / recurrent sponsor spot. */
   isTimeSensitive: boolean;
   eventDate?: string;
   replacementAction: string;

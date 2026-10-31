@@ -16,7 +16,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
-import { formatDaysRemainingText, formatDateDisplay } from '@/lib/date-utils';
+import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
 
 interface BreaksSlotMatrixProps {
   ads: CommercialAd[];
@@ -149,7 +149,7 @@ export function BreaksSlotMatrix({
                           </div>
                         ) : (
                           breakAds.map((ad, idx) => {
-                            const daysInfo = formatDaysRemainingText(ad.endDate);
+                            const daysInfo = formatDaysRemainingText(ad.endDate, undefined, ad);
                             const isExpired = ad.status === 'expired';
                             const isExpiring = ad.status === 'expiring_soon';
                             const isTakenOff = !!ad.takenOffAt;
@@ -217,7 +217,7 @@ export function BreaksSlotMatrix({
                                   </div>
 
                                   {/* Replacement prompt if expired or expiring */}
-                                  {(isExpired || isExpiring) && (
+                                  {tracksPullDeadline(ad) && (isExpired || isExpiring) && (
                                     <div className="mt-2 text-[10px] p-1.5 rounded bg-zinc-900 border border-zinc-800 text-amber-300/90 leading-tight">
                                       <b>Instruction: </b>{ad.replacementAction}
                                     </div>
