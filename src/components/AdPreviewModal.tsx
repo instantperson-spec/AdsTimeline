@@ -14,9 +14,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
-  Trash2,
   Film,
-  ExternalLink,
+  Tv,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay } from '@/lib/date-utils';
@@ -25,16 +24,12 @@ interface AdPreviewModalProps {
   ad: CommercialAd | null;
   shows: CommercialShow[];
   onClose: () => void;
-  onTakeOffAd: (adId: string, note?: string) => void;
-  onDeleteAd: (adId: string) => void;
 }
 
 export function AdPreviewModal({
   ad,
   shows,
   onClose,
-  onTakeOffAd,
-  onDeleteAd,
 }: AdPreviewModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -113,16 +108,16 @@ export function AdPreviewModal({
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-zinc-100 max-h-[90vh]">
         {/* Modal Top Bar */}
         <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
-              <Film className="w-4 h-4" />
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
+              <Film className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2 text-[11px] text-zinc-400">
-                <span className="font-bold text-zinc-300">{show?.title || ad.showTitle}</span>
+                <span className="font-bold text-zinc-200">{show?.title || ad.showTitle}</span>
                 <span>&bull;</span>
-                <span className="text-indigo-400 font-mono">
-                  Break {ad.breakNumber} &bull; Slot {ad.slotIndex}
+                <span className="text-indigo-400 font-mono font-semibold">
+                  Przerwa {ad.breakNumber} &bull; Slot #{ad.slotIndex}
                 </span>
                 <span>&bull;</span>
                 <span className="font-mono text-zinc-400">{ad.durationSec}s spot</span>
@@ -135,15 +130,15 @@ export function AdPreviewModal({
 
           <div className="flex items-center space-x-2">
             <span
-              className={`px-2.5 py-1 rounded-full text-xs font-bold border ${daysInfo.badgeClass}`}
+              className={`px-3 py-1 rounded-xl text-xs font-mono font-black border ${daysInfo.badgeClass}`}
             >
-              {daysInfo.text}
+              {isExpired ? '🚨 TERMIN MINĄŁ!' : daysInfo.text}
             </span>
             <button
               onClick={onClose}
               className="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -151,7 +146,7 @@ export function AdPreviewModal({
         {/* Media Preview Container (Video or Frame grab) */}
         <div className="relative bg-black aspect-video w-full flex items-center justify-center overflow-hidden">
           {activeMediaTab === 'video' && ad.videoUrl ? (
-            <div className="relative w-full h-full flex flex-col items-center justify-center">
+            <div className="relative w-full h-full flex items-center justify-center group/player">
               <video
                 ref={videoRef}
                 src={ad.videoUrl}
@@ -161,23 +156,47 @@ export function AdPreviewModal({
                 onEnded={() => setIsPlaying(false)}
                 muted={isMuted}
                 playsInline
-                className="w-full h-full object-contain cursor-pointer"
+                className="w-full h-full object-contain"
                 onClick={togglePlay}
               />
 
-              {/* Centered play overlay when paused */}
+              {/* Center Play/Pause button on hover */}
               {!isPlaying && (
                 <button
                   onClick={togglePlay}
-                  className="absolute w-14 h-14 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-transform"
+                  className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-transform cursor-pointer"
                 >
-                  <Play className="w-6 h-6 fill-current ml-0.5" />
+                  <Play className="w-8 h-8 fill-current ml-1" />
                 </button>
               )}
 
-              {/* Video Bottom Player Controls Bar */}
-              <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black via-black/70 to-transparent flex flex-col space-y-1.5">
-                {/* Progress scrubber */}
+              {/* Bottom Video Controls Bar */}
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 flex items-center space-x-3 transition-opacity">
+                <button
+                  onClick={togglePlay}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-4 h-4 fill-current" />
+                  ) : (
+                    <Play className="w-4 h-4 fill-current" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = 0;
+                      setCurrentTime(0);
+                    }
+                  }}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Od początku"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Scrubber */}
                 <input
                   type="range"
                   min={0}
@@ -185,108 +204,81 @@ export function AdPreviewModal({
                   step={0.1}
                   value={currentTime}
                   onChange={handleSeek}
-                  className="w-full h-1 bg-zinc-700 accent-indigo-500 rounded-lg cursor-pointer"
+                  className="flex-1 accent-indigo-500 h-1.5 rounded-lg cursor-pointer bg-white/30"
                 />
 
-                <div className="flex items-center justify-between text-xs text-zinc-300">
-                  <div className="flex items-center space-x-3">
-                    <button onClick={togglePlay} className="hover:text-white">
-                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (videoRef.current) {
-                          videoRef.current.currentTime = 0;
-                          setCurrentTime(0);
-                        }
-                      }}
-                      className="hover:text-white"
-                      title="From start"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => setIsMuted(!isMuted)} className="hover:text-white">
-                      {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                    </button>
-                    <span className="font-mono text-[11px] text-zinc-400">
-                      {formatSec(currentTime)} / {formatSec(duration || ad.durationSec)}
-                    </span>
-                  </div>
+                <span className="font-mono text-xs text-zinc-300">
+                  {formatSec(currentTime)} / {formatSec(duration || ad.durationSec)}
+                </span>
 
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800/80 font-mono text-zinc-400">
-                    H.264 HD 20-30s Proxy
-                  </span>
-                </div>
+                <button
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
               </div>
             </div>
           ) : (
-            <div className="relative w-full h-full">
+            <div className="relative w-full h-full flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={ad.frameGrabUrl}
                 alt={ad.title}
                 className="w-full h-full object-contain"
               />
-              <div className="absolute bottom-3 left-3 bg-black/80 px-2.5 py-1 rounded-lg text-xs font-mono text-zinc-300">
-                Frame grab
-              </div>
+              <span className="absolute top-3 left-3 bg-black/80 font-mono text-[11px] text-zinc-300 px-2 py-1 rounded-md border border-white/10">
+                Klatka kluczowa z emisji
+              </span>
             </div>
           )}
-
-          {/* Toggle between Video Player & Frame Grab */}
-          <div className="absolute top-3 left-3 flex items-center space-x-1 p-0.5 rounded-lg bg-black/80 backdrop-blur-md border border-zinc-800 text-[11px]">
-            {ad.videoUrl && (
-              <button
-                onClick={() => setActiveMediaTab('video')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
-                  activeMediaTab === 'video'
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Play video ({ad.durationSec}s)
-              </button>
-            )}
-            <button
-              onClick={() => setActiveMediaTab('frame')}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
-                activeMediaTab === 'frame'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Frame grab
-            </button>
-          </div>
         </div>
 
-        {/* Details & Traffic Actions */}
-        <div className="p-5 space-y-4 overflow-y-auto">
-          {/* Status Alert Banner */}
-          {isExpired && !isTakenOff && (
-            <div className="p-3 rounded-2xl bg-rose-950/60 border border-rose-600 flex items-start space-x-3 text-rose-200 text-xs">
+        {/* Media Switcher Tab */}
+        <div className="bg-zinc-950 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setActiveMediaTab('video')}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                activeMediaTab === 'video'
+                  ? 'bg-zinc-800 text-white border border-zinc-700'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Podgląd Wideo (HD H.264)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMediaTab('frame')}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                activeMediaTab === 'frame'
+                  ? 'bg-zinc-800 text-white border border-zinc-700'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Tv className="w-3.5 h-3.5 text-amber-400" />
+              <span>Klatka Wideo (Frame Grab)</span>
+            </button>
+          </div>
+
+          <span className="text-[11px] text-zinc-500 font-mono">
+            Format: 1080p 25fps Stereo
+          </span>
+        </div>
+
+        {/* Commercial Metadata & Flight Status */}
+        <div className="p-5 overflow-y-auto space-y-4">
+          {/* Status Box */}
+          {isExpired && (
+            <div className="p-4 rounded-2xl bg-rose-950/70 border border-rose-500 flex items-start space-x-3 text-rose-200 text-xs shadow-lg shadow-rose-950/40">
               <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
               <div>
-                <h4 className="font-bold text-rose-300 text-sm">
-                  URGENT: Ad expired!
+                <h4 className="font-extrabold text-white text-sm">
+                  Spot wymaga zdjęcia z anteny: Termin wydarzenia minął!
                 </h4>
-                <p className="mt-0.5 text-zinc-300">
-                  End date passed {formatDateDisplay(ad.endDate)}. Pull this spot from the break
-                  before the next programme transmission.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isTakenOff && (
-            <div className="p-3 rounded-2xl bg-emerald-950/50 border border-emerald-600 flex items-center space-x-3 text-emerald-200 text-xs">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <div>
-                <h4 className="font-bold text-emerald-300 text-sm">
-                  Spot already taken off the log
-                </h4>
-                <p className="text-zinc-300">
-                  Pulled {formatDateDisplay(ad.takenOffAt || '')}. {ad.replacementAdTitle || ''}
+                <p className="mt-0.5 text-rose-200/90 leading-relaxed">
+                  Data końcowa minęła {formatDateDisplay(ad.endDate)}. Spot zostanie wycofany z ramówki przed kolejną emisją programu.
                 </p>
               </div>
             </div>
@@ -294,96 +286,62 @@ export function AdPreviewModal({
 
           {/* Grid Meta */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Advertiser
+                Reklamodawca
               </span>
               <span className="font-bold text-zinc-200">{ad.advertiser}</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Category
+                Kategoria
               </span>
               <span className="font-bold text-zinc-200">{ad.category}</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                On-air start
+                Start emisji
               </span>
               <span className="font-bold text-zinc-200">{formatDateDisplay(ad.startDate)}</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
-              <span className="text-[10px] text-rose-400 uppercase font-bold block mb-1">
-                End (pull by)
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <span className="text-[10px] text-amber-400 uppercase font-bold block mb-1">
+                Zdjąć do (Koniec)
               </span>
-              <span className="font-black text-rose-300">{formatDateDisplay(ad.endDate)}</span>
+              <span className="font-extrabold text-amber-300">{formatDateDisplay(ad.endDate)}</span>
             </div>
           </div>
 
           {/* Replacement Action box */}
-          <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-1.5">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-400">
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
+            <div className="flex items-center space-x-2 text-xs font-bold text-amber-400">
               <ShieldAlert className="w-4 h-4" />
-              <span>Pull and replacement instruction:</span>
+              <span>Instrukcja zastąpienia materiału po wygaśnięciu:</span>
             </div>
             <p className="text-xs text-zinc-200 leading-relaxed font-medium">
               {ad.replacementAction}
             </p>
             {ad.eventDate && (
-              <p className="text-[11px] text-zinc-400">
-                Event / tour details: <b className="text-zinc-200">{ad.eventDate}</b>
-              </p>
-            )}
-            {ad.notes && (
-              <p className="text-[11px] text-zinc-500 italic mt-1">
-                Traffic notes: {ad.notes}
+              <p className="text-xs text-zinc-400">
+                Szczegóły wydarzenia: <b className="text-zinc-200">{ad.eventDate}</b>
               </p>
             )}
           </div>
 
-          {/* Footer Actions */}
-          <div className="pt-2 flex items-center justify-between border-t border-zinc-800">
+          {/* Modal Footer (Read-Only: Just Close) */}
+          <div className="pt-3 flex items-center justify-end border-t border-zinc-800">
             <button
-              onClick={() => {
-                if (confirm(`Delete ad "${ad.title}"?`)) {
-                  onDeleteAd(ad.id);
-                  onClose();
-                }
-              }}
-              className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 p-2 rounded-xl hover:bg-rose-950/40 transition-colors"
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors shadow"
             >
-              <Trash2 className="w-4 h-4" />
-              <span>Delete from database</span>
+              Zamknij podgląd
             </button>
-
-            <div className="flex items-center space-x-3">
-              {!isTakenOff && (
-                <button
-                  onClick={() => {
-                    onTakeOffAd(ad.id);
-                    onClose();
-                  }}
-                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Mark as taken off air</span>
-                </button>
-              )}
-
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-colors"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       </div>
     </dialog>
   );
 }
-
