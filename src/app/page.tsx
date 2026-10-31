@@ -1,26 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  CommercialShow,
-  CommercialAd,
-  TimelineViewMode,
-} from '@/types/timeline';
+import { CommercialShow, CommercialAd } from '@/types/timeline';
 import { INITIAL_SHOWS, INITIAL_ADS } from '@/lib/mock-data';
 import { computeAdStatus } from '@/lib/date-utils';
 
 import { Header } from '@/components/Header';
-import { ClientTimelineScreen } from '@/components/ClientTimelineScreen';
-import { ClientTimelineListView } from '@/components/ClientTimelineListView';
-import { BreaksSlotMatrix } from '@/components/BreaksSlotMatrix';
-import { UrgentExpiryRadar } from '@/components/UrgentExpiryRadar';
+import { CleanScheduleView } from '@/components/CleanScheduleView';
 
 import { AdPreviewModal } from '@/components/AdPreviewModal';
 import { NewAdModal } from '@/components/NewAdModal';
 import { NewShowModal } from '@/components/NewShowModal';
 import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
-
-import { AlertTriangle, ArrowRight } from 'lucide-react';
 
 const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v4';
 const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v4';
@@ -44,7 +35,6 @@ export default function AdsTimelineApp() {
   const [shows, setShows] = useState<CommercialShow[]>(INITIAL_SHOWS);
   const [ads, setAds] = useState<CommercialAd[]>(INITIAL_ADS);
   const [selectedShowId, setSelectedShowId] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<TimelineViewMode>('client');
 
   // Modals state
   const [selectedAd, setSelectedAd] = useState<CommercialAd | null>(null);
@@ -160,7 +150,7 @@ export default function AdsTimelineApp() {
     }
   };
 
-  // Handlers for Shows & Breaks
+  // Handlers for Shows
   const handleCreateShow = (newShow: CommercialShow) => {
     const nextShows = [...shows, newShow];
     saveShows(nextShows);
@@ -175,57 +165,17 @@ export default function AdsTimelineApp() {
     setSelectedShowId('all');
   };
 
-  const handleAddBreak = (showId: string) => {
-    const nextShows = shows.map((s) => {
-      if (s.id === showId) {
-        return { ...s, breakCount: Math.min(6, s.breakCount + 1) };
-      }
-      return s;
-    });
-    saveShows(nextShows);
-  };
-
-  const handleRemoveBreak = (showId: string, breakNumber: number) => {
-    const show = shows.find((s) => s.id === showId);
-    if (!show || show.breakCount <= 1) return;
-
-    if (!confirm(`Usunąć przerwę ${breakNumber} i wszystkie jej reklamy z programu "${show.title}"?`)) {
-      return;
-    }
-
-    const nextShows = shows.map((s) => {
-      if (s.id === showId) {
-        return { ...s, breakCount: s.breakCount - 1 };
-      }
-      return s;
-    });
-
-    const nextAds = ads
-      .filter((a) => !(a.showId === showId && a.breakNumber === breakNumber))
-      .map((a) => {
-        if (a.showId === showId && a.breakNumber > breakNumber) {
-          return { ...a, breakNumber: a.breakNumber - 1 };
-        }
-        return a;
-      });
-
-    saveShows(nextShows);
-    saveAds(nextAds);
-  };
-
   // Urgent counts
   const expiredCount = ads.filter((a) => !a.takenOffAt && a.status === 'expired').length;
   const expiringSoonCount = ads.filter((a) => !a.takenOffAt && a.status === 'expiring_soon').length;
 
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
-      {/* Top Header: Always gives access to all views and administrative tools */}
+      {/* 1. Sleek Single-Row Header */}
       <Header
         shows={shows}
         selectedShowId={selectedShowId}
         onSelectShow={setSelectedShowId}
-        viewMode={viewMode}
-        onChangeViewMode={setViewMode}
         onOpenNewAd={() =>
           openNewAdModal(selectedShowId !== 'all' ? selectedShowId : undefined)
         }
@@ -236,81 +186,21 @@ export default function AdsTimelineApp() {
         onDeleteShow={handleDeleteShow}
       />
 
-      {/* Urgent Warning Notification Banner if expired ads exist */}
-      {expiredCount > 0 && viewMode !== 'urgent_radar' && (
-        <div className="bg-rose-950/80 border-b border-rose-800 px-4 py-2 flex items-center justify-between text-xs text-rose-200 shrink-0">
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 animate-pulse shrink-0" />
-            <span>
-              <b>OSTRZEŻENIE RAMÓWKI:</b> Masz <b>{expiredCount}</b> przeterminowany(ch) spot(ów) (np. termin koncertu minął). Zdejmij z anteny przed kolejną emisją!
-            </span>
-          </div>
-          <button
-            onClick={() => setViewMode('urgent_radar')}
-            className="flex items-center space-x-1 font-bold text-white bg-rose-600 hover:bg-rose-500 px-2.5 py-1 rounded-lg transition-colors shrink-0 ml-4"
-          >
-            <span>Centrum Zdejmowania</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Main View Area: Switch between Client Timeline, Cards Studio, Breaks Matrix, and Radar */}
+      {/* 2. Main Ultra-Clean Schedule View (Simple as a paper cue sheet) */}
       <main className="flex-1 overflow-hidden flex flex-col">
-        {/* VIEW 1: DEDICATED CLIENT TIMELINE SCREEN (NO EDITING, RICH TIMELINE CANVAS) */}
-        {viewMode === 'client' && (
-          <ClientTimelineScreen
-            ads={ads}
-            shows={shows}
-            selectedShowId={selectedShowId}
-            onSelectShow={setSelectedShowId}
-            onSelectAd={setSelectedAd}
-            onOpenAdminPanel={() => setViewMode('matrix')}
-          />
-        )}
-
-        {/* VIEW 2: CARDS & TIMELINE STUDIO (WITH EDITING & QUICK ACTIONS) */}
-        {viewMode === 'timeline' && (
-          <ClientTimelineListView
-            ads={ads}
-            shows={shows}
-            selectedShowId={selectedShowId}
-            onSelectAd={setSelectedAd}
-            onTakeOffAd={handleTakeOffAd}
-            onOpenNewAd={() =>
-              openNewAdModal(selectedShowId !== 'all' ? selectedShowId : undefined)
-            }
-          />
-        )}
-
-        {/* VIEW 3: COMMERCIAL BREAKS & SLOTS MATRIX */}
-        {viewMode === 'matrix' && (
-          <BreaksSlotMatrix
-            ads={ads}
-            shows={shows}
-            selectedShowId={selectedShowId}
-            onEditAd={openEditAdModal}
-            onOpenNewAdForBreak={(sId, bNum) => openNewAdModal(sId, bNum)}
-            onAddBreak={handleAddBreak}
-            onRemoveBreak={handleRemoveBreak}
-            onDeleteAd={handleDeleteAd}
-            onTakeOffAd={handleTakeOffAd}
-          />
-        )}
-
-        {/* VIEW 4: URGENT RADAR & TAKE-DOWN CENTER */}
-        {viewMode === 'urgent_radar' && (
-          <UrgentExpiryRadar
-            ads={ads}
-            shows={shows}
-            onSelectAd={setSelectedAd}
-            onTakeOffAd={handleTakeOffAd}
-            onOpenNewAd={() => openNewAdModal()}
-          />
-        )}
+        <CleanScheduleView
+          ads={ads}
+          shows={shows}
+          selectedShowId={selectedShowId}
+          onSelectAd={setSelectedAd}
+          onEditAd={openEditAdModal}
+          onDeleteAd={handleDeleteAd}
+          onTakeOffAd={handleTakeOffAd}
+          onOpenNewAdForBreak={(sId, bNum) => openNewAdModal(sId, bNum)}
+        />
       </main>
 
-      {/* Video Preview & Ad Details Modal (Supports both Client viewing and Admin actions) */}
+      {/* 3. Modals */}
       <AdPreviewModal
         ad={selectedAd}
         shows={shows}
@@ -318,10 +208,8 @@ export default function AdsTimelineApp() {
         onTakeOffAd={handleTakeOffAd}
         onDeleteAd={handleDeleteAd}
         onEditAd={openEditAdModal}
-        isClientView={viewMode === 'client'}
       />
 
-      {/* New & Edit Ad Modal */}
       <NewAdModal
         isOpen={isNewAdOpen}
         onClose={closeAdModal}
@@ -333,14 +221,12 @@ export default function AdsTimelineApp() {
         onUpdateAd={handleUpdateAd}
       />
 
-      {/* New Show Modal */}
       <NewShowModal
         isOpen={isNewShowOpen}
         onClose={() => setIsNewShowOpen(false)}
         onCreateShow={handleCreateShow}
       />
 
-      {/* MCR Cue Sheet Modal */}
       <TrafficCueSheetModal
         isOpen={isCueSheetOpen}
         onClose={() => setIsCueSheetOpen(false)}
