@@ -3,7 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Ads Timeline & Traffic Tracker | Instant Productions',
-  description: 'System zarządzania i monitorowania czasu emisji reklam TV (Ireland West Music TV & Broadcast Commercials)',
+  description:
+    'TV commercial traffic and expiry tracker (Ireland West Music TV & The Michael Commins Show)',
 };
 
 export default function RootLayout({
@@ -12,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className="dark">
+    <html lang="en" className="dark">
       <body className="antialiased bg-zinc-950 text-zinc-100 min-h-screen">
         {children}
       </body>

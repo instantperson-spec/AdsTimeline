@@ -3,7 +3,6 @@
 import React from 'react';
 import {
   Tv,
-  Calendar,
   Layers,
   AlertTriangle,
   Clock,
@@ -66,7 +65,7 @@ export function Header({
                 </span>
               </div>
               <h1 className="text-sm font-bold text-zinc-100 flex items-center space-x-1.5">
-                <span>Traffic & Expiration Tracker</span>
+                <span>Kalendarz & Kontrola Emisji Reklam</span>
               </h1>
             </div>
           </div>
@@ -115,12 +114,12 @@ export function Header({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Czy na pewno chcesz usunąć program "${show.title}" wraz z jego reklamami?`)) {
+                        if (confirm(`Delete show "${show.title}" and all its ads?`)) {
                           onDeleteShow(show.id);
                         }
                       }}
                       className="opacity-0 group-hover/pill:opacity-100 p-1 hover:text-rose-400 text-zinc-500 transition-opacity ml-0.5"
-                      title="Usuń ten program"
+                      title="Delete this show"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -137,20 +136,20 @@ export function Header({
           <button
             onClick={onOpenCueSheet}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
-            title="Generuj oficjalną rozkładówkę emisyjną dla reżyserki / MCR"
+            title="Metryka emisji dla MCR / reżyserki emisji"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden md:inline">Rozpiska MCR</span>
+            <span className="hidden md:inline">Metryka MCR</span>
           </button>
 
           {/* New Show Button */}
           <button
             onClick={onOpenNewShow}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
-            title="Dodaj nowy program telewizyjny / audycję"
+            title="Dodaj nowy program TV"
           >
             <TvMinimalPlay className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">+ Nowy Show</span>
+            <span className="hidden sm:inline">+ Nowy Program</span>
           </button>
 
           {/* New Ad Button */}
@@ -177,7 +176,7 @@ export function Header({
             }`}
           >
             <Clock className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Oś Czasu (Gantt)</span>
+            <span>Timeline & Lista Detali</span>
           </button>
 
           <button
@@ -193,18 +192,6 @@ export function Header({
               Bloki Reklamowe
               {currentShow ? ` (${currentShow.breakCount} przerwy)` : ''}
             </span>
-          </button>
-
-          <button
-            onClick={() => onChangeViewMode('calendar')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              viewMode === 'calendar'
-                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Kalendarz Emisji</span>
           </button>
 
           {/* Urgent Radar / Take-down Center */}
@@ -252,7 +239,7 @@ export function Header({
             <div className="flex items-center space-x-2">
               <span className="text-zinc-400">Widok zbiorczy wszystkich programów</span>
               <span>&bull;</span>
-              <span className="text-zinc-300 font-semibold">{shows.length} audycji TV</span>
+              <span className="text-zinc-300 font-semibold">{shows.length} programy TV</span>
             </div>
           )}
         </div>

@@ -15,8 +15,8 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
 
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
-  const [channel, setChannel] = useState('Sky 181 / Freesat 400');
-  const [broadcastSchedule, setBroadcastSchedule] = useState('Czwartki 21:00 GMT');
+  const [channel, setChannel] = useState('Faith World TV');
+  const [broadcastSchedule, setBroadcastSchedule] = useState('Wednesdays — Faith World TV');
   const [breakCount, setBreakCount] = useState(3);
   const [color, setColor] = useState<'emerald' | 'amber' | 'cyan' | 'purple' | 'rose' | 'indigo'>('emerald');
   const [description, setDescription] = useState('');
@@ -45,7 +45,7 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
       title: title.trim(),
       code: code.trim().toUpperCase() || title.substring(0, 4).toUpperCase(),
       channel: channel.trim() || 'Broadcast TV',
-      broadcastSchedule: broadcastSchedule.trim() || 'Cotygodniowo',
+      broadcastSchedule: broadcastSchedule.trim() || 'Weekly',
       breakCount: Number(breakCount) || 3,
       color,
       description: description.trim() || undefined,
@@ -77,10 +77,10 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
             </div>
             <div>
               <h2 id="new-show-modal-title" className="text-sm font-bold text-zinc-100">
-                Dodaj Nowy Program TV (Show)
+                Add New TV Show
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Utwórz audycję i określ liczbę przerw reklamowych (Commercial Breaks)
+                Create a show and set the number of commercial breaks
               </p>
             </div>
           </div>
@@ -96,13 +96,13 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Tytuł programu (Show Title) *
+              Show title *
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="np. Ireland West Music TV"
+              placeholder="e.g. Ireland West Music TV"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-semibold"
               required
               autoFocus
@@ -112,65 +112,65 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Kod / Skrót audycji
+                Show code / abbreviation
               </label>
               <input
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="np. IWMTV"
+                placeholder="e.g. IWMTV"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>
 
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Liczba przerw reklamowych *
+                Number of commercial breaks *
               </label>
               <select
                 value={breakCount}
                 onChange={(e) => setBreakCount(parseInt(e.target.value))}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
               >
-                <option value={1}>1 przerwa (Break 1)</option>
-                <option value={2}>2 przerwy (Break 1, 2)</option>
-                <option value={3}>3 przerwy (np. Ireland West Music TV)</option>
-                <option value={4}>4 przerwy</option>
-                <option value={5}>5 przerw</option>
-                <option value={6}>6 przerw</option>
+                <option value={1}>1 break</option>
+                <option value={2}>2 breaks</option>
+                <option value={3}>3 breaks (e.g. Ireland West Music TV)</option>
+                <option value={4}>4 breaks</option>
+                <option value={5}>5 breaks</option>
+                <option value={6}>6 breaks</option>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Kanał / Dystrybucja
+              Channel / distribution
             </label>
             <input
               type="text"
               value={channel}
               onChange={(e) => setChannel(e.target.value)}
-              placeholder="np. Sky 181 / Freesat 400"
+              placeholder="e.g. Faith World TV"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Pasmo emisyjne / Dzień i godzina
+              Broadcast slot / day & time
             </label>
             <input
               type="text"
               value={broadcastSchedule}
               onChange={(e) => setBroadcastSchedule(e.target.value)}
-              placeholder="np. Czwartki 21:00 GMT"
+              placeholder="e.g. Wednesdays — Faith World TV"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Kolor znacznika audycji
+              Show colour marker
             </label>
             <div className="flex items-center space-x-2 pt-1">
               {(['emerald', 'amber', 'cyan', 'purple', 'rose', 'indigo'] as const).map((c) => (
@@ -200,12 +200,12 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
 
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Opis programu (opcjonalnie)
+              Show description (optional)
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="np. Format muzyczny, pasmo regionalne..."
+              placeholder="e.g. Music format, regional slot..."
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 resize-none h-16"
             />
           </div>
@@ -216,14 +216,14 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white"
             >
-              Anuluj
+              Cancel
             </button>
             <button
               type="submit"
               className="flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95"
             >
               <Check className="w-4 h-4" />
-              <span>Utwórz program</span>
+              <span>Create show</span>
             </button>
           </div>
         </form>

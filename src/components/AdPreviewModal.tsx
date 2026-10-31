@@ -122,7 +122,7 @@ export function AdPreviewModal({
                 <span className="font-bold text-zinc-300">{show?.title || ad.showTitle}</span>
                 <span>&bull;</span>
                 <span className="text-indigo-400 font-mono">
-                  Przerwa {ad.breakNumber} &bull; Slot {ad.slotIndex}
+                  Break {ad.breakNumber} &bull; Slot {ad.slotIndex}
                 </span>
                 <span>&bull;</span>
                 <span className="font-mono text-zinc-400">{ad.durationSec}s spot</span>
@@ -201,7 +201,7 @@ export function AdPreviewModal({
                         }
                       }}
                       className="hover:text-white"
-                      title="Od początku"
+                      title="From start"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
@@ -228,7 +228,7 @@ export function AdPreviewModal({
                 className="w-full h-full object-contain"
               />
               <div className="absolute bottom-3 left-3 bg-black/80 px-2.5 py-1 rounded-lg text-xs font-mono text-zinc-300">
-                Klatka z wideo (Frame Grab)
+                Frame grab
               </div>
             </div>
           )}
@@ -244,7 +244,7 @@ export function AdPreviewModal({
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                Odtwórz wideo ({ad.durationSec}s)
+                Play video ({ad.durationSec}s)
               </button>
             )}
             <button
@@ -255,7 +255,7 @@ export function AdPreviewModal({
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Klatka z wideo
+              Frame grab
             </button>
           </div>
         </div>
@@ -268,11 +268,11 @@ export function AdPreviewModal({
               <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
               <div>
                 <h4 className="font-bold text-rose-300 text-sm">
-                  PILNE: Reklama przeterminowana!
+                  URGENT: Ad expired!
                 </h4>
                 <p className="mt-0.5 text-zinc-300">
-                  Data końcowa minęła {formatDateDisplay(ad.endDate)}. Należy niezwłocznie wyciąć
-                  spot z bloku emisyjnego przed kolejną emisją programu.
+                  End date passed {formatDateDisplay(ad.endDate)}. Pull this spot from the break
+                  before the next programme transmission.
                 </p>
               </div>
             </div>
@@ -283,10 +283,10 @@ export function AdPreviewModal({
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div>
                 <h4 className="font-bold text-emerald-300 text-sm">
-                  Spot został już zdjęty z ramówki
+                  Spot already taken off the log
                 </h4>
                 <p className="text-zinc-300">
-                  Zdjęto {formatDateDisplay(ad.takenOffAt || '')}. {ad.replacementAdTitle || ''}
+                  Pulled {formatDateDisplay(ad.takenOffAt || '')}. {ad.replacementAdTitle || ''}
                 </p>
               </div>
             </div>
@@ -296,28 +296,28 @@ export function AdPreviewModal({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Reklamodawca
+                Advertiser
               </span>
               <span className="font-bold text-zinc-200">{ad.advertiser}</span>
             </div>
 
             <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Kategoria
+                Category
               </span>
               <span className="font-bold text-zinc-200">{ad.category}</span>
             </div>
 
             <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Start emisji
+                On-air start
               </span>
               <span className="font-bold text-zinc-200">{formatDateDisplay(ad.startDate)}</span>
             </div>
 
             <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-rose-400 uppercase font-bold block mb-1">
-                Koniec (Zdjąć do)
+                End (pull by)
               </span>
               <span className="font-black text-rose-300">{formatDateDisplay(ad.endDate)}</span>
             </div>
@@ -327,19 +327,19 @@ export function AdPreviewModal({
           <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-1.5">
             <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-400">
               <ShieldAlert className="w-4 h-4" />
-              <span>Dyspozycja zdjęcia i podmiany spotu:</span>
+              <span>Pull and replacement instruction:</span>
             </div>
             <p className="text-xs text-zinc-200 leading-relaxed font-medium">
               {ad.replacementAction}
             </p>
             {ad.eventDate && (
               <p className="text-[11px] text-zinc-400">
-                Szczegóły wydarzenia / trasy koncertowej: <b className="text-zinc-200">{ad.eventDate}</b>
+                Event / tour details: <b className="text-zinc-200">{ad.eventDate}</b>
               </p>
             )}
             {ad.notes && (
               <p className="text-[11px] text-zinc-500 italic mt-1">
-                Uwagi montażowe: {ad.notes}
+                Traffic notes: {ad.notes}
               </p>
             )}
           </div>
@@ -348,7 +348,7 @@ export function AdPreviewModal({
           <div className="pt-2 flex items-center justify-between border-t border-zinc-800">
             <button
               onClick={() => {
-                if (confirm(`Czy na pewno usunąć reklamę "${ad.title}"?`)) {
+                if (confirm(`Delete ad "${ad.title}"?`)) {
                   onDeleteAd(ad.id);
                   onClose();
                 }
@@ -356,7 +356,7 @@ export function AdPreviewModal({
               className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 p-2 rounded-xl hover:bg-rose-950/40 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-              <span>Usuń z bazy</span>
+              <span>Delete from database</span>
             </button>
 
             <div className="flex items-center space-x-3">
@@ -369,7 +369,7 @@ export function AdPreviewModal({
                   className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Oznacz jako zdjętą z anteny</span>
+                  <span>Mark as taken off air</span>
                 </button>
               )}
 
@@ -377,7 +377,7 @@ export function AdPreviewModal({
                 onClick={onClose}
                 className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-colors"
               >
-                Zamknij
+                Close
               </button>
             </div>
           </div>

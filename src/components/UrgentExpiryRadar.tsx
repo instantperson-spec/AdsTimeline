@@ -37,7 +37,7 @@ export function UrgentExpiryRadar({
 }: UrgentExpiryRadarProps) {
   const [filterType, setFilterType] = useState<'all_urgent' | 'expired_only' | 'expiring_soon' | 'taken_off'>('all_urgent');
   const [takingOffAdId, setTakingOffAdId] = useState<string | null>(null);
-  const [replacementNote, setReplacementNote] = useState('Zastąpiono zwiastunem stacji IWMTV 30s');
+  const [replacementNote, setReplacementNote] = useState('Replaced with IWMTV station promo 30s');
 
   const expiredAds = ads.filter((a) => !a.takenOffAt && a.status === 'expired');
   const expiringSoonAds = ads.filter((a) => !a.takenOffAt && a.status === 'expiring_soon');
@@ -76,9 +76,9 @@ export function UrgentExpiryRadar({
               </div>
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-rose-300">
-                  Przeterminowane (Pilne!)
+                  Expired (Urgent!)
                 </h3>
-                <p className="text-[11px] text-zinc-400">Wymagają natychmiastowego zdjęcia</p>
+                <p className="text-[11px] text-zinc-400">Must be taken off air immediately</p>
               </div>
             </div>
             <span className="text-2xl font-black text-rose-400 font-mono">
@@ -103,9 +103,9 @@ export function UrgentExpiryRadar({
               </div>
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">
-                  Wygasa w ciągu 3-5 dni
+                  Expiring in 3–5 days
                 </h3>
-                <p className="text-[11px] text-zinc-400">Przygotuj podmianę spotu</p>
+                <p className="text-[11px] text-zinc-400">Prepare spot replacement</p>
               </div>
             </div>
             <span className="text-2xl font-black text-amber-400 font-mono">
@@ -126,9 +126,9 @@ export function UrgentExpiryRadar({
               </div>
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                  Zdjęte z anteny
+                  Taken off air
                 </h3>
-                <p className="text-[11px] text-zinc-400">Zarchiwizowane i podmienione</p>
+                <p className="text-[11px] text-zinc-400">Archived and replaced</p>
               </div>
             </div>
             <span className="text-2xl font-black text-zinc-300 font-mono">
@@ -149,7 +149,7 @@ export function UrgentExpiryRadar({
                 : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
             }`}
           >
-            Wszystkie pilne ({expiredAds.length + expiringSoonAds.length})
+            All urgent ({expiredAds.length + expiringSoonAds.length})
           </button>
 
           <button
@@ -160,7 +160,7 @@ export function UrgentExpiryRadar({
                 : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
             }`}
           >
-            Tylko przeterminowane ({expiredAds.length})
+            Expired only ({expiredAds.length})
           </button>
 
           <button
@@ -171,7 +171,7 @@ export function UrgentExpiryRadar({
                 : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
             }`}
           >
-            Zbliżające się do końca ({expiringSoonAds.length})
+            Expiring soon ({expiringSoonAds.length})
           </button>
 
           <button
@@ -182,12 +182,12 @@ export function UrgentExpiryRadar({
                 : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
             }`}
           >
-            Zdjęte z anteny ({takenOffAds.length})
+            Taken off air ({takenOffAds.length})
           </button>
         </div>
 
         <div className="text-xs text-zinc-400">
-          Zadanie traffic managera: pilnować, aby żaden przeterminowany koncert nie leciał na antenie!
+          Traffic manager: ensure no expired concert spot stays on air!
         </div>
       </div>
 
@@ -195,9 +195,9 @@ export function UrgentExpiryRadar({
       {displayedAds.length === 0 ? (
         <div className="p-12 text-center rounded-3xl border border-dashed border-zinc-850 bg-zinc-900/30 text-zinc-500">
           <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-500/60" />
-          <h4 className="text-base font-bold text-zinc-200 mb-1">Czysta ramówka!</h4>
+          <h4 className="text-base font-bold text-zinc-200 mb-1">Clean log!</h4>
           <p className="text-xs text-zinc-400 max-w-md mx-auto">
-            W tej kategorii nie ma żadnych reklam wymagających natychmiastowej interwencji.
+            No ads in this category need immediate action.
           </p>
         </div>
       ) : (
@@ -228,7 +228,7 @@ export function UrgentExpiryRadar({
                       </span>
                       <span className="text-zinc-600">&bull;</span>
                       <span className="px-2 py-0.5 rounded bg-zinc-800 text-indigo-300 font-mono text-[11px] font-semibold border border-zinc-700">
-                        Przerwa {ad.breakNumber} (Break {ad.breakNumber}) - Slot {ad.slotIndex}
+                        Break {ad.breakNumber} — Slot {ad.slotIndex}
                       </span>
                     </div>
 
@@ -285,7 +285,7 @@ export function UrgentExpiryRadar({
                       <div className="flex items-center space-x-2 text-xs text-zinc-400 mt-1">
                         <Calendar className="w-3.5 h-3.5 text-zinc-500" />
                         <span>
-                          Emisja: <b className="text-zinc-200">{formatDateDisplay(ad.startDate)}</b> &rarr;{' '}
+                          On air: <b className="text-zinc-200">{formatDateDisplay(ad.startDate)}</b> &rarr;{' '}
                           <b className="text-amber-300">{formatDateDisplay(ad.endDate)}</b>
                         </span>
                       </div>
@@ -293,7 +293,7 @@ export function UrgentExpiryRadar({
                       {/* Event Date notice if time-sensitive */}
                       {ad.eventDate && (
                         <p className="text-[11px] text-zinc-400 mt-1 font-medium">
-                          Wydarzenie: <span className="text-amber-400">{ad.eventDate}</span>
+                          Event: <span className="text-amber-400">{ad.eventDate}</span>
                         </p>
                       )}
                     </div>
@@ -303,7 +303,7 @@ export function UrgentExpiryRadar({
                   <div className="mt-3 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-850 text-xs text-zinc-300 flex items-start space-x-2">
                     <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div className="flex-1 leading-snug">
-                      <span className="font-semibold text-zinc-200">Dyspozycja zdjęcia: </span>
+                      <span className="font-semibold text-zinc-200">Pull instruction: </span>
                       <span className="text-zinc-400">{ad.replacementAction}</span>
                     </div>
                   </div>
@@ -313,7 +313,7 @@ export function UrgentExpiryRadar({
                     <div className="mt-2 text-[11px] text-emerald-400 flex items-center space-x-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>
-                        Zdjęto z anteny {formatDateDisplay(ad.takenOffAt || '')}. {ad.replacementAdTitle ? `Wstawiono: ${ad.replacementAdTitle}` : ''}
+                        Taken off air {formatDateDisplay(ad.takenOffAt || '')}. {ad.replacementAdTitle ? `Replaced with: ${ad.replacementAdTitle}` : ''}
                       </span>
                     </div>
                   )}
@@ -326,7 +326,7 @@ export function UrgentExpiryRadar({
                     className="flex items-center space-x-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
                   >
                     <Film className="w-3.5 h-3.5" />
-                    <span>Podgląd Wideo & Szczegóły</span>
+                    <span>Video preview & details</span>
                   </button>
 
                   {!isTakenOff && (
@@ -337,20 +337,20 @@ export function UrgentExpiryRadar({
                             type="text"
                             value={replacementNote}
                             onChange={(e) => setReplacementNote(e.target.value)}
-                            placeholder="Czym zastąpiono spot?"
+                            placeholder="What replaced this spot?"
                             className="bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-200 placeholder-zinc-500 w-48"
                           />
                           <button
                             onClick={() => handleConfirmTakeOff(ad.id)}
                             className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow"
                           >
-                            Zatwierdź
+                            Confirm
                           </button>
                           <button
                             onClick={() => setTakingOffAdId(null)}
                             className="px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200"
                           >
-                            Anuluj
+                            Cancel
                           </button>
                         </div>
                       ) : (
@@ -363,7 +363,7 @@ export function UrgentExpiryRadar({
                           }`}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Zdejmij z anteny (Podmień)</span>
+                          <span>Take off air (Replace)</span>
                         </button>
                       )}
                     </div>

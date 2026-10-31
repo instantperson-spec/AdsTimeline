@@ -77,7 +77,7 @@ export function TimelineGanttView({
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const isToday = dStr === todayStr;
 
-      const dayNames = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
       days.push({
         date: d,
@@ -89,16 +89,16 @@ export function TimelineGanttView({
       });
 
       // Calculate week groupings
-      const monthName = d.toLocaleDateString('pl-PL', { month: 'short' });
+      const monthName = d.toLocaleDateString('en-GB', { month: 'short' });
       if (dayOfWeek === 1 || i === 0) {
         if (currentWeekCount > 0) {
           weeks.push({
-            weekLabel: `${currentWeekMonth} • Tydzień`,
+            weekLabel: `${currentWeekMonth} • Week`,
             spanDays: currentWeekCount,
           });
         }
         currentWeekCount = 1;
-        currentWeekMonth = d.toLocaleDateString('pl-PL', { month: 'long' });
+        currentWeekMonth = d.toLocaleDateString('en-GB', { month: 'long' });
       } else {
         currentWeekCount++;
       }
@@ -106,7 +106,7 @@ export function TimelineGanttView({
 
     if (currentWeekCount > 0) {
       weeks.push({
-        weekLabel: `${currentWeekMonth} • Tydzień`,
+        weekLabel: `${currentWeekMonth} • Week`,
         spanDays: currentWeekCount,
       });
     }
@@ -200,7 +200,7 @@ export function TimelineGanttView({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filtruj reklamy / wykonawcę..."
+              placeholder="Filter ads / advertiser..."
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
@@ -215,7 +215,7 @@ export function TimelineGanttView({
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              Wszystkie ({ads.length})
+              All ({ads.length})
             </button>
 
             <button
@@ -229,7 +229,7 @@ export function TimelineGanttView({
               }`}
             >
               <AlertTriangle className="w-3 h-3 text-rose-400" />
-              <span>Pilne do zdjęcia ({expiredCount + expiringCount})</span>
+              <span>Urgent pull ({expiredCount + expiringCount})</span>
             </button>
 
             <button
@@ -240,7 +240,7 @@ export function TimelineGanttView({
                   : 'text-emerald-400 hover:text-emerald-300'
               }`}
             >
-              Aktywne
+              Active
             </button>
           </div>
         </div>
@@ -251,19 +251,19 @@ export function TimelineGanttView({
           <button
             onClick={scrollToToday}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold transition-all active:scale-95 shadow-sm"
-            title="Przewiń widok osi czasu do dzisiejszego dnia (31 Października)"
+            title="Scroll timeline to today (31 October)"
           >
             <Crosshair className="w-3.5 h-3.5 text-amber-400" />
-            <span>Skocz do DZIŚ (31 Paź)</span>
+            <span>Jump to TODAY (31 Oct)</span>
           </button>
 
           {/* Zoom Level Switcher */}
           <div className="flex items-center space-x-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-            <span className="text-[10px] text-zinc-500 font-bold px-1.5">SKALA:</span>
+            <span className="text-[10px] text-zinc-500 font-bold px-1.5">ZOOM:</span>
             {[
-              { label: 'Kompaktowa', width: 44 },
-              { label: 'Czytelna (64px)', width: 64 },
-              { label: 'Rozszerzona', width: 84 },
+              { label: 'Compact', width: 44 },
+              { label: 'Standard (64px)', width: 64 },
+              { label: 'Expanded', width: 84 },
             ].map((z) => (
               <button
                 key={z.width}
@@ -298,11 +298,11 @@ export function TimelineGanttView({
               <div className="flex items-center space-x-2">
                 <Tv className="w-4 h-4 text-indigo-400" />
                 <span className="font-bold text-xs uppercase tracking-wider text-zinc-200">
-                  Audycja & Spot Reklamowy
+                  Show & Commercial Spot
                 </span>
               </div>
               <span className="text-[10px] font-mono text-zinc-500 font-semibold uppercase">
-                Slot / Czas
+                Slot / Duration
               </span>
             </div>
 
@@ -349,7 +349,7 @@ export function TimelineGanttView({
                     className="absolute top-0 bottom-0 w-0.5 bg-amber-400 z-30 shadow-[0_0_12px_rgba(251,191,36,0.9)] pointer-events-none"
                   >
                     <div className="absolute top-0.5 -translate-x-1/2 bg-amber-400 text-zinc-950 text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase shadow">
-                      DZIŚ
+                      TODAY
                     </div>
                   </div>
                 )}
@@ -388,7 +388,7 @@ export function TimelineGanttView({
                     </div>
 
                     <span className="text-xs text-zinc-400 font-semibold pr-4">
-                      {showAds.length} {showAds.length === 1 ? 'aktywna reklama' : 'aktywne reklamy'}
+                      {showAds.length} {showAds.length === 1 ? 'active ad' : 'active ads'}
                     </span>
                   </div>
 
@@ -403,10 +403,10 @@ export function TimelineGanttView({
                           <div className="w-[340px] shrink-0 sticky left-0 z-10 flex items-center space-x-2">
                             <Layers className="w-3.5 h-3.5 text-indigo-400" />
                             <span className="font-bold text-zinc-200">
-                              Przerwa {breakNum} (Break {breakNum})
+                              Break {breakNum}
                             </span>
                             <span className="text-[10px] text-zinc-500 font-mono">
-                              ({breakAds.length} {breakAds.length === 1 ? 'spot' : 'spoty'})
+                              ({breakAds.length} {breakAds.length === 1 ? 'spot' : 'spots'})
                             </span>
                           </div>
                         </div>
@@ -414,7 +414,7 @@ export function TimelineGanttView({
                         {/* Each Ad in this break gets its own clear, comfortable horizontal lane! */}
                         {breakAds.length === 0 ? (
                           <div className="flex items-center h-12 border-b border-zinc-850/40 text-xs text-zinc-600 pl-6 italic">
-                            Brak zaplanowanych spotów w bloku Break {breakNum}
+                            No spots scheduled in Break {breakNum}
                           </div>
                         ) : (
                           breakAds.map((ad) => {
@@ -478,7 +478,7 @@ export function TimelineGanttView({
                                           : daysInfo.badgeClass
                                       }`}
                                     >
-                                      {isTakenOff ? 'Zdjęta' : isExpired ? 'ZDEJMIJ!' : daysInfo.text}
+                                      {isTakenOff ? 'Taken off' : isExpired ? 'PULL!' : daysInfo.text}
                                     </span>
                                   </div>
                                 </div>
@@ -545,7 +545,7 @@ export function TimelineGanttView({
                                           </span>
                                         </div>
                                         <span className="text-[10px] text-zinc-400 truncate">
-                                          {ad.advertiser} &bull; Emisja: {formatShortDate(ad.startDate)} &rarr;{' '}
+                                          {ad.advertiser} &bull; Flight: {formatShortDate(ad.startDate)} &rarr;{' '}
                                           <b className={isExpired ? 'text-rose-300' : 'text-amber-300'}>
                                             {formatShortDate(ad.endDate)}
                                           </b>
@@ -573,7 +573,7 @@ export function TimelineGanttView({
                                         {isExpired ? (
                                           <>
                                             <AlertTriangle className="w-3 h-3 text-white fill-current" />
-                                            <span>ZDEJMIJ Z ANTENY!</span>
+                                            <span>TAKE OFF AIR!</span>
                                           </>
                                         ) : (
                                           <span>{daysInfo.text}</span>

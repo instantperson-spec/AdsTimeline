@@ -44,7 +44,7 @@ export function NewAdModal({
   const [endDate, setEndDate] = useState('2026-11-10');
   const [isTimeSensitive, setIsTimeSensitive] = useState(true);
   const [eventDate, setEventDate] = useState('');
-  const [replacementAction, setReplacementAction] = useState('Podmienić na uniwersalny filler stacji po wygaśnięciu.');
+  const [replacementAction, setReplacementAction] = useState('Replace with universal station filler after expiry.');
   const [frameGrabUrl, setFrameGrabUrl] = useState('https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&auto=format&fit=crop&q=80');
   const [videoUrl, setVideoUrl] = useState('/samples/nature-clip.mp4');
   const [notes, setNotes] = useState('');
@@ -104,7 +104,7 @@ export function NewAdModal({
       videoUrl: videoUrl.trim() || '/samples/nature-clip.mp4',
       isTimeSensitive,
       eventDate: eventDate.trim() || undefined,
-      replacementAction: replacementAction.trim() || 'Zastąpić zwiastunem stacji.',
+      replacementAction: replacementAction.trim() || 'Replace with station promo.',
       notes: notes.trim() || undefined,
       status: 'active',
       createdAt: new Date().toISOString(),
@@ -138,10 +138,10 @@ export function NewAdModal({
             </div>
             <div>
               <h2 id="new-ad-modal-title" className="text-sm font-bold text-zinc-100">
-                Dodaj Nową Reklamę / Spot Time-Sensitive
+                Add New Ad / Time-Sensitive Spot
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Ustaw slot w bloku oraz horyzont czasowy, aby kontrolować termin zdjęcia spotu
+                Set break slot and flight dates to control when the spot must be pulled
               </p>
             </div>
           </div>
@@ -159,7 +159,7 @@ export function NewAdModal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Program TV (Show) *
+                TV show *
               </label>
               <select
                 value={showId}
@@ -176,7 +176,7 @@ export function NewAdModal({
 
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Przerwa reklamowa *
+                Commercial break *
               </label>
               <select
                 value={breakNumber}
@@ -185,7 +185,7 @@ export function NewAdModal({
               >
                 {Array.from({ length: selectedShow?.breakCount || 3 }, (_, i) => i + 1).map((num) => (
                   <option key={num} value={num}>
-                    Przerwa {num} (Break {num})
+                    Break {num}
                   </option>
                 ))}
               </select>
@@ -193,14 +193,14 @@ export function NewAdModal({
 
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Pozycja w bloku (Slot)
+                Slot position
               </label>
               <select
                 value={slotIndex}
                 onChange={(e) => setSlotIndex(parseInt(e.target.value))}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
               >
-                <option value={1}>Slot 1 (Otwierający blok)</option>
+                <option value={1}>Slot 1 (Opens break)</option>
                 <option value={2}>Slot 2</option>
                 <option value={3}>Slot 3</option>
                 <option value={4}>Slot 4</option>
@@ -212,13 +212,13 @@ export function NewAdModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Nazwa reklamy / Tytuł spotu *
+                Ad name / spot title *
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="np. Live Concert Tour: Daniel O'Donnell"
+                placeholder="e.g. Live Concert Tour: Daniel O'Donnell"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-semibold"
                 required
               />
@@ -226,13 +226,13 @@ export function NewAdModal({
 
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Reklamodawca / Promotor / Klient *
+                Advertiser / promoter / client *
               </label>
               <input
                 type="text"
                 value={advertiser}
                 onChange={(e) => setAdvertiser(e.target.value)}
-                placeholder="np. Mayo Arts Centre / Sony Music"
+                placeholder="e.g. Mayo Arts Centre / Sony Music"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
                 required
               />
@@ -243,7 +243,7 @@ export function NewAdModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Kategoria reklamy
+                Ad category
               </label>
               <select
                 value={category}
@@ -260,18 +260,18 @@ export function NewAdModal({
 
             <div>
               <label className="block text-zinc-300 font-semibold mb-1">
-                Czas trwania spotu
+                Spot duration
               </label>
               <select
                 value={durationSec}
                 onChange={(e) => setDurationSec(parseInt(e.target.value))}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
               >
-                <option value={15}>15 sekund</option>
-                <option value={20}>20 sekund</option>
-                <option value={30}>30 sekund (standard)</option>
-                <option value={45}>45 sekund</option>
-                <option value={60}>60 sekund</option>
+                <option value={15}>15 seconds</option>
+                <option value={20}>20 seconds</option>
+                <option value={30}>30 seconds (standard)</option>
+                <option value={45}>45 seconds</option>
+                <option value={60}>60 seconds</option>
               </select>
             </div>
           </div>
@@ -280,13 +280,13 @@ export function NewAdModal({
           <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
             <div className="flex items-center space-x-2 text-amber-400 font-bold">
               <Calendar className="w-4 h-4" />
-              <span>Horyzont czasowy emisji (Flight Dates)</span>
+              <span>On-air flight dates</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-zinc-400 text-[11px] mb-1">
-                  Start emisji (Od kiedy leci)
+                  Start date (on air from)
                 </label>
                 <input
                   type="date"
@@ -299,7 +299,7 @@ export function NewAdModal({
 
               <div>
                 <label className="block text-rose-300 font-bold text-[11px] mb-1">
-                  TERMIN ZDJĘCIA (Kiedy zdjąć z anteny!) *
+                  PULL DATE (take off air by!) *
                 </label>
                 <input
                   type="date"
@@ -320,20 +320,20 @@ export function NewAdModal({
                 className="rounded border-zinc-700 text-indigo-600 focus:ring-0 w-4 h-4"
               />
               <label htmlFor="isTimeSensitive" className="text-zinc-300 font-medium">
-                Reklama Time-Sensitive (np. data trasy koncertowej, festiwal z twardym terminem)
+                Time-sensitive ad (e.g. fixed concert or festival date)
               </label>
             </div>
 
             {isTimeSensitive && (
               <div>
                 <label className="block text-zinc-400 text-[11px] mb-1">
-                  Data i miejsce koncertu / imprezy (widoczne dla traffic managera)
+                  Event date & venue (visible to traffic manager)
                 </label>
                 <input
                   type="text"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
-                  placeholder="np. 15 Listopada 2026 - TF Royal Hotel Castlebar"
+                  placeholder="e.g. 15 November 2026 — TF Royal Hotel Castlebar"
                   className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-3 py-1.5 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
@@ -343,13 +343,13 @@ export function NewAdModal({
           {/* Replacement Action Instruction */}
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Dyspozycja po wygaśnięciu (Czym zastąpić spot po dacie zdjęcia?)
+              Replacement after expiry (what to run after pull date?)
             </label>
             <input
               type="text"
               value={replacementAction}
               onChange={(e) => setReplacementAction(e.target.value)}
-              placeholder="np. Podmienić na ogólny zwiastun stacji IWMTV 30s natychmiast po 5 listopada"
+              placeholder="e.g. Swap to IWMTV station promo 30s immediately after 5 November"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
@@ -359,11 +359,11 @@ export function NewAdModal({
             <div className="flex items-center justify-between">
               <span className="font-semibold text-zinc-300 flex items-center space-x-1.5">
                 <Film className="w-4 h-4 text-indigo-400" />
-                <span>Klatka z wideo & Wideo podglądowe (20-30s H.264)</span>
+                <span>Frame grab & preview video (20–30s H.264)</span>
               </span>
               <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-indigo-300 font-semibold text-[11px] flex items-center space-x-1">
                 <Upload className="w-3 h-3" />
-                <span>Wgraj plik (MP4 / JPG)</span>
+                <span>Upload file (MP4 / JPG)</span>
                 <input
                   type="file"
                   accept="video/mp4,video/quicktime,image/*"
@@ -375,7 +375,7 @@ export function NewAdModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
               <div>
-                <label className="text-zinc-400 block mb-1">URL klatki z wideo (Plakat)</label>
+                <label className="text-zinc-400 block mb-1">Frame grab URL (poster)</label>
                 <input
                   type="text"
                   value={frameGrabUrl}
@@ -384,7 +384,7 @@ export function NewAdModal({
                 />
               </div>
               <div>
-                <label className="text-zinc-400 block mb-1">Ścieżka wideo podglądowego</label>
+                <label className="text-zinc-400 block mb-1">Preview video path</label>
                 <input
                   type="text"
                   value={videoUrl}
@@ -402,14 +402,14 @@ export function NewAdModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white"
             >
-              Anuluj
+              Cancel
             </button>
             <button
               type="submit"
               className="flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
             >
               <Check className="w-4 h-4" />
-              <span>Dodaj do ramówki</span>
+              <span>Add to log</span>
             </button>
           </div>
         </form>

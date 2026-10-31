@@ -20,7 +20,6 @@ export function computeAdStatus(ad: CommercialAd, referenceDate: Date = new Date
     return 'expired';
   }
 
-  // Check if expiring in the next 5 days
   const fiveDaysMs = 5 * 24 * 60 * 60 * 1000;
   if (end - refTime <= fiveDaysMs) {
     return 'expiring_soon';
@@ -29,9 +28,6 @@ export function computeAdStatus(ad: CommercialAd, referenceDate: Date = new Date
   return 'active';
 }
 
-/**
- * Returns days difference relative to today
- */
 export function getDaysRemaining(endDateStr: string, referenceDate: Date = new Date()): number {
   const ref = new Date(referenceDate);
   ref.setHours(0, 0, 0, 0);
@@ -43,10 +39,10 @@ export function getDaysRemaining(endDateStr: string, referenceDate: Date = new D
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
-/**
- * Format human-readable countdown in Polish
- */
-export function formatDaysRemainingText(endDateStr: string, referenceDate: Date = new Date()): {
+export function formatDaysRemainingText(
+  endDateStr: string,
+  referenceDate: Date = new Date()
+): {
   text: string;
   badgeClass: string;
   isUrgent: boolean;
@@ -57,8 +53,10 @@ export function formatDaysRemainingText(endDateStr: string, referenceDate: Date 
   if (days < 0) {
     const absDays = Math.abs(days);
     return {
-      text: absDays === 1 ? 'Przeterminowana (1 dzień temu!)' : `Przeterminowana (${absDays} dni temu!)`,
-      badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/40 ring-1 ring-rose-500/30 animate-pulse',
+      text:
+        absDays === 1 ? 'Expired (1 day ago!)' : `Expired (${absDays} days ago!)`,
+      badgeClass:
+        'bg-rose-500/20 text-rose-300 border-rose-500/40 ring-1 ring-rose-500/30 animate-pulse',
       isUrgent: true,
       isExpired: true,
     };
@@ -66,8 +64,9 @@ export function formatDaysRemainingText(endDateStr: string, referenceDate: Date 
 
   if (days === 0) {
     return {
-      text: 'WYGASA DZISIAJ!',
-      badgeClass: 'bg-rose-600 text-white font-bold border-rose-400 ring-2 ring-rose-500 animate-bounce',
+      text: 'EXPIRES TODAY!',
+      badgeClass:
+        'bg-rose-600 text-white font-bold border-rose-400 ring-2 ring-rose-500 animate-bounce',
       isUrgent: true,
       isExpired: false,
     };
@@ -75,8 +74,9 @@ export function formatDaysRemainingText(endDateStr: string, referenceDate: Date 
 
   if (days === 1) {
     return {
-      text: 'Wygasa jutro!',
-      badgeClass: 'bg-amber-500/25 text-amber-300 border-amber-500/40 font-bold ring-1 ring-amber-500/30',
+      text: 'Expires tomorrow!',
+      badgeClass:
+        'bg-amber-500/25 text-amber-300 border-amber-500/40 font-bold ring-1 ring-amber-500/30',
       isUrgent: true,
       isExpired: false,
     };
@@ -84,7 +84,7 @@ export function formatDaysRemainingText(endDateStr: string, referenceDate: Date 
 
   if (days <= 5) {
     return {
-      text: `Zostało: ${days} dni`,
+      text: `${days} days left`,
       badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
       isUrgent: true,
       isExpired: false,
@@ -92,29 +92,23 @@ export function formatDaysRemainingText(endDateStr: string, referenceDate: Date 
   }
 
   return {
-    text: `Aktywna: ${days} dni`,
+    text: `Active: ${days} days`,
     badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
     isUrgent: false,
     isExpired: false,
   };
 }
 
-/**
- * Format date for display: e.g. "15 Lis 2026"
- */
 export function formatDateDisplay(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('pl-PL', {
+  return date.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
 
-/**
- * Format short date: e.g. "15/11"
- */
 export function formatShortDate(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
@@ -123,9 +117,6 @@ export function formatShortDate(dateStr: string): string {
   return `${d}/${m}`;
 }
 
-/**
- * Today as YYYY-MM-DD
- */
 export function getTodayString(): string {
   const d = new Date();
   const year = d.getFullYear();
@@ -134,23 +125,15 @@ export function getTodayString(): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Difference in calendar days between two YYYY-MM-DD strings
- */
 export function diffCalendarDays(dateStrA: string, dateStrB: string): number {
   const a = new Date(dateStrA + 'T00:00:00');
   const b = new Date(dateStrB + 'T00:00:00');
   return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-/**
- * Formats ISO date to YYYY-MM-DD
- */
 export function toISODateString(d: Date): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
-
-

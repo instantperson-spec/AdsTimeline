@@ -10,9 +10,8 @@ import { INITIAL_SHOWS, INITIAL_ADS } from '@/lib/mock-data';
 import { computeAdStatus } from '@/lib/date-utils';
 
 import { Header } from '@/components/Header';
-import { TimelineGanttView } from '@/components/TimelineGanttView';
+import { ClientTimelineListView } from '@/components/ClientTimelineListView';
 import { BreaksSlotMatrix } from '@/components/BreaksSlotMatrix';
-import { CalendarMonthView } from '@/components/CalendarMonthView';
 import { UrgentExpiryRadar } from '@/components/UrgentExpiryRadar';
 
 import { AdPreviewModal } from '@/components/AdPreviewModal';
@@ -22,8 +21,24 @@ import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 
 import { AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 
-const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v1';
-const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v1';
+const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v3';
+const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v3';
+
+const FAITH_WORLD_TV = 'Faith World TV';
+
+const SHOW_BROADCAST_PATCH: Record<string, string> = {
+  'show-iwmtv': 'Wednesdays 22:00 GMT — Faith World TV',
+  'show-mcs': 'Wednesdays 23:00 GMT — Faith World TV',
+};
+
+/** Keep saved shows but refresh known programme channel / schedule metadata. */
+function migrateShows(shows: CommercialShow[]): CommercialShow[] {
+  return shows.map((s) => {
+    const schedule = SHOW_BROADCAST_PATCH[s.id];
+    if (!schedule) return s;
+    return { ...s, channel: FAITH_WORLD_TV, broadcastSchedule: schedule };
+  });
+}
 
 export default function AdsTimelineApp() {
   const [shows, setShows] = useState<CommercialShow[]>(INITIAL_SHOWS);
@@ -42,10 +57,15 @@ export default function AdsTimelineApp() {
   // Restore from localStorage and recompute statuses
   useEffect(() => {
     try {
-      const savedShows = localStorage.getItem(STORAGE_KEY_SHOWS);
-      const savedAds = localStorage.getItem(STORAGE_KEY_ADS);
+      const savedShows =
+        localStorage.getItem(STORAGE_KEY_SHOWS) ||
+        localStorage.getItem('instant_ads_timeline_shows_v2');
+      const savedAds =
+        localStorage.getItem(STORAGE_KEY_ADS) ||
+        localStorage.getItem('instant_ads_timeline_ads_v2');
 
-      const baseShows = savedShows ? JSON.parse(savedShows) : INITIAL_SHOWS;
+      const parsedShows: CommercialShow[] = savedShows ? JSON.parse(savedShows) : INITIAL_SHOWS;
+      const baseShows = migrateShows(parsedShows);
       const baseAds: CommercialAd[] = savedAds ? JSON.parse(savedAds) : INITIAL_ADS;
 
       // Dynamically calculate status for each ad
@@ -56,6 +76,19 @@ export default function AdsTimelineApp() {
 
       setShows(baseShows);
       setAds(updatedAds);
+      localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(baseShows));
+      localStorage.setItem(STORAGE_KEY_ADS, JSON.stringify(updatedAds));
+
+      [
+        'instant_ads_timeline_shows_v1',
+        'instant_ads_timeline_ads_v1',
+        'instant_ads_timeline_shows_v2',
+        'instant_ads_timeline_ads_v2',
+      ].forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch (_) {}
+      });
     } catch (e) {
       console.warn('Could not read from localStorage', e);
     }
@@ -100,7 +133,7 @@ export default function AdsTimelineApp() {
         return {
           ...a,
           takenOffAt: new Date().toISOString().split('T')[0],
-          replacementAdTitle: replacementNote || 'Zdjęto z ramówki i zastąpiono fillerem stacji.',
+          replacementAdTitle: replacementNote || 'Removed from log and replaced with station filler.',
           status: 'taken_off' as const,
         };
       }
@@ -157,14 +190,14 @@ export default function AdsTimelineApp() {
           <div className="flex items-center space-x-2">
             <AlertTriangle className="w-4 h-4 text-rose-400 animate-pulse shrink-0" />
             <span>
-              <b>ALARM RAMÓWKI:</b> Masz <b>{expiredCount}</b> przeterminowaną reklamę (np. koncert, który już się odbył). Wymagane natychmiastowe zdjęcie z anteny przed najbliższą emisją!
+              <b>OSTRZEŻENIE RAMÓWKI:</b> Masz <b>{expiredCount}</b> przeterminowany(ch) spot(ów) (np. termin koncertu minął). Zdejmij z anteny przed kolejną emisją!
             </span>
           </div>
           <button
             onClick={() => setViewMode('urgent_radar')}
             className="flex items-center space-x-1 font-bold text-white bg-rose-600 hover:bg-rose-500 px-2.5 py-1 rounded-lg transition-colors shrink-0 ml-4"
           >
-            <span>Przejdź do Centrum Zdejmowania</span>
+            <span>Centrum Zdejmowania</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -173,12 +206,17 @@ export default function AdsTimelineApp() {
       {/* Main View Area */}
       <main className="flex-1 overflow-hidden flex flex-col">
         {viewMode === 'timeline' && (
-          <TimelineGanttView
+          <ClientTimelineListView
             ads={ads}
             shows={shows}
             selectedShowId={selectedShowId}
             onSelectAd={setSelectedAd}
-            onOpenNewAd={() => setIsNewAdOpen(true)}
+            onTakeOffAd={handleTakeOffAd}
+            onOpenNewAd={() => {
+              setNewAdShowId(selectedShowId !== 'all' ? selectedShowId : undefined);
+              setNewAdBreakNumber(undefined);
+              setIsNewAdOpen(true);
+            }}
           />
         )}
 
@@ -195,15 +233,6 @@ export default function AdsTimelineApp() {
             }}
             onDeleteAd={handleDeleteAd}
             onTakeOffAd={handleTakeOffAd}
-          />
-        )}
-
-        {viewMode === 'calendar' && (
-          <CalendarMonthView
-            ads={ads}
-            shows={shows}
-            selectedShowId={selectedShowId}
-            onSelectAd={setSelectedAd}
           />
         )}
 

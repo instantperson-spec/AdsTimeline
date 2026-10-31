@@ -42,13 +42,13 @@ export interface CommercialShow {
   id: string;
   title: string;              // np. "Show 1: Ireland West Music TV"
   code: string;               // np. "IWMTV"
-  channel: string;            // np. "Sky 181 / Freesat 400"
-  broadcastSchedule: string;  // np. "Czwartki 21:00 GMT"
+  channel: string;            // e.g. "Faith World TV"
+  broadcastSchedule: string;  // e.g. "Wednesdays 22:00 GMT — Faith World TV"
   breakCount: number;         // np. 3 przerwy reklamowe
   color: 'emerald' | 'amber' | 'cyan' | 'purple' | 'rose' | 'indigo';
   description?: string;
   createdAt: string;
 }
 
-export type TimelineViewMode = 'timeline' | 'calendar' | 'matrix' | 'urgent_radar';
+export type TimelineViewMode = 'timeline' | 'matrix' | 'urgent_radar';
 
