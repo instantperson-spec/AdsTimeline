@@ -5,7 +5,8 @@ import { X, Plus, Pencil, Calendar, Film, Upload, Check } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { computeAdStatus, getTodayString } from '@/lib/date-utils';
 import { hasFlightWindow, recurrentFlightStorageDates } from '@/lib/ad-flight';
-import { readVideoDurationSec } from '@/lib/media-duration';
+import { compressVideoForWebPreview, shouldCompressVideo } from '@/lib/compress-video';
+import { isVideoFile, readVideoMetadata } from '@/lib/video-meta';
 import { uploadMediaFile } from '@/lib/timeline-api';
 
 interface NewAdModalProps {
@@ -47,6 +48,8 @@ export function NewAdModal({
   const [notes, setNotes] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [compressProgress, setCompressProgress] = useState<number | null>(null);
+  const [compressWebVideo, setCompressWebVideo] = useState(true);
   const [durationFromFile, setDurationFromFile] = useState(false);
 
   useEffect(() => {
@@ -102,17 +105,35 @@ export function NewAdModal({
 
     setUploadError(null);
     setUploading(true);
+    setCompressProgress(null);
     try {
-      if (file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mp4')) {
-        const fromFile = await readVideoDurationSec(file);
-        if (fromFile != null) {
-          setDurationSec(fromFile);
+      let toUpload = file;
+
+      if (isVideoFile(file)) {
+        const meta = await readVideoMetadata(file);
+        if (meta.durationSec != null) {
+          setDurationSec(meta.durationSec);
           setDurationFromFile(true);
+        }
+
+        if (
+          compressWebVideo &&
+          shouldCompressVideo(meta.width, meta.height, file.size)
+        ) {
+          try {
+            toUpload = await compressVideoForWebPreview(file, (ratio) => {
+              setCompressProgress(ratio);
+            });
+          } catch (compressErr) {
+            console.warn('Video compress failed, uploading original', compressErr);
+            toUpload = file;
+          }
         }
       }
 
-      const { url } = await uploadMediaFile(file);
-      if (file.type.startsWith('video/')) {
+      setCompressProgress(null);
+      const { url } = await uploadMediaFile(toUpload);
+      if (isVideoFile(file)) {
         setVideoUrl(url);
       } else if (file.type.startsWith('image/')) {
         setFrameGrabUrl(url);
@@ -123,6 +144,7 @@ export function NewAdModal({
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
+      setCompressProgress(null);
       e.target.value = '';
     }
   };
@@ -394,7 +416,13 @@ export function NewAdModal({
               </span>
               <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-indigo-300 font-semibold text-[11px] flex items-center space-x-1">
                 <Upload className="w-3 h-3" />
-                <span>{uploading ? 'Uploading…' : 'Upload to Blob (MP4 / JPG)'}</span>
+                <span>
+                  {uploading
+                    ? compressProgress != null
+                      ? `Converting… ${Math.round(compressProgress * 100)}%`
+                      : 'Uploading…'
+                    : 'Upload to Blob (MP4 / JPG)'}
+                </span>
                 <input
                   type="file"
                   accept="video/mp4,video/quicktime,image/*"
@@ -405,6 +433,17 @@ export function NewAdModal({
             </div>
 
             {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
+
+            <label className="flex items-center gap-2 text-[11px] text-zinc-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={compressWebVideo}
+                onChange={(e) => setCompressWebVideo(e.target.checked)}
+                disabled={uploading}
+                className="rounded border-zinc-700 text-indigo-600 focus:ring-0 w-3.5 h-3.5"
+              />
+              Convert large videos to ~480p H.264 before upload (smaller preview on Blob)
+            </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
               <div>
