@@ -16,6 +16,8 @@ import {
   ShieldAlert,
   Film,
   Tv,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay } from '@/lib/date-utils';
@@ -24,12 +26,20 @@ interface AdPreviewModalProps {
   ad: CommercialAd | null;
   shows: CommercialShow[];
   onClose: () => void;
+  onTakeOffAd?: (adId: string, note?: string) => void;
+  onDeleteAd?: (adId: string) => void;
+  onEditAd?: (ad: CommercialAd) => void;
+  isClientView?: boolean;
 }
 
 export function AdPreviewModal({
   ad,
   shows,
   onClose,
+  onTakeOffAd,
+  onDeleteAd,
+  onEditAd,
+  isClientView = false,
 }: AdPreviewModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -331,14 +341,63 @@ export function AdPreviewModal({
             )}
           </div>
 
-          {/* Modal Footer (Read-Only: Just Close) */}
-          <div className="pt-3 flex items-center justify-end border-t border-zinc-800">
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors shadow"
-            >
-              Zamknij podgląd
-            </button>
+          {/* Modal Footer */}
+          <div className="pt-3 flex items-center justify-between border-t border-zinc-800">
+            {!isClientView && onDeleteAd ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Usunąć reklamę "${ad.title}" z bazy danych?`)) {
+                    onDeleteAd(ad.id);
+                    onClose();
+                  }
+                }}
+                className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 px-3 py-2 rounded-xl hover:bg-rose-950/40 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Usuń z bazy</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center space-x-2.5">
+              {!isClientView && onEditAd && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onEditAd(ad);
+                  }}
+                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Edytuj spot</span>
+                </button>
+              )}
+
+              {!isClientView && onTakeOffAd && !isTakenOff && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onTakeOffAd(ad.id);
+                    onClose();
+                  }}
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Zdejmij z anteny</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors shadow"
+              >
+                Zamknij podgląd
+              </button>
+            </div>
           </div>
         </div>
       </div>

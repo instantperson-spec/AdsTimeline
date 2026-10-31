@@ -168,6 +168,18 @@ export function Header({
         {/* View Tabs */}
         <div className="flex items-center space-x-1 shrink-0">
           <button
+            onClick={() => onChangeViewMode('client')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewMode === 'client'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/50'
+                : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+            }`}
+          >
+            <Tv className="w-3.5 h-3.5 text-indigo-300" />
+            <span>👁️ Widok Klienta (Timeline)</span>
+          </button>
+
+          <button
             onClick={() => onChangeViewMode('timeline')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               viewMode === 'timeline'
@@ -175,8 +187,8 @@ export function Header({
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Clock className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Timeline & Lista Detali</span>
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span>Karty & Terminarz (Studio)</span>
           </button>
 
           <button

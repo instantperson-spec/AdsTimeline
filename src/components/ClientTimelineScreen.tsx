@@ -16,6 +16,8 @@ import {
   Info,
   ChevronRight,
   Maximize2,
+  SlidersHorizontal,
+  ChevronLeft,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import {
@@ -32,7 +34,74 @@ interface ClientTimelineScreenProps {
   selectedShowId: string;
   onSelectShow: (showId: string) => void;
   onSelectAd: (ad: CommercialAd) => void;
+  onOpenAdminPanel?: () => void;
 }
+
+// Break color scheme definitions to prevent visual blending
+const BREAK_THEMES: Record<
+  number,
+  {
+    borderAccent: string;
+    headerBg: string;
+    headerText: string;
+    badgeBg: string;
+    badgeText: string;
+    laneTint: string;
+    laneBorder: string;
+    label: string;
+  }
+> = {
+  1: {
+    borderAccent: 'border-indigo-500',
+    headerBg: 'bg-indigo-950/70',
+    headerText: 'text-indigo-200',
+    badgeBg: 'bg-indigo-600',
+    badgeText: 'text-white',
+    laneTint: 'bg-indigo-950/10',
+    laneBorder: 'border-indigo-900/40',
+    label: 'Przerwa 1 (Break 1)',
+  },
+  2: {
+    borderAccent: 'border-emerald-500',
+    headerBg: 'bg-emerald-950/70',
+    headerText: 'text-emerald-200',
+    badgeBg: 'bg-emerald-600',
+    badgeText: 'text-white',
+    laneTint: 'bg-emerald-950/10',
+    laneBorder: 'border-emerald-900/40',
+    label: 'Przerwa 2 (Break 2)',
+  },
+  3: {
+    borderAccent: 'border-amber-500',
+    headerBg: 'bg-amber-950/70',
+    headerText: 'text-amber-200',
+    badgeBg: 'bg-amber-600',
+    badgeText: 'text-zinc-950',
+    laneTint: 'bg-amber-950/10',
+    laneBorder: 'border-amber-900/40',
+    label: 'Przerwa 3 (Break 3)',
+  },
+  4: {
+    borderAccent: 'border-purple-500',
+    headerBg: 'bg-purple-950/70',
+    headerText: 'text-purple-200',
+    badgeBg: 'bg-purple-600',
+    badgeText: 'text-white',
+    laneTint: 'bg-purple-950/10',
+    laneBorder: 'border-purple-900/40',
+    label: 'Przerwa 4 (Break 4)',
+  },
+  5: {
+    borderAccent: 'border-cyan-500',
+    headerBg: 'bg-cyan-950/70',
+    headerText: 'text-cyan-200',
+    badgeBg: 'bg-cyan-600',
+    badgeText: 'text-zinc-950',
+    laneTint: 'bg-cyan-950/10',
+    laneBorder: 'border-cyan-900/40',
+    label: 'Przerwa 5 (Break 5)',
+  },
+};
 
 export function ClientTimelineScreen({
   ads,
@@ -40,9 +109,10 @@ export function ClientTimelineScreen({
   selectedShowId,
   onSelectShow,
   onSelectAd,
+  onOpenAdminPanel,
 }: ClientTimelineScreenProps) {
-  // Column width for the timeline ruler: 64px (compact), 80px (standard), 100px (roomy)
-  const [dayWidth, setDayWidth] = useState<number>(80);
+  // Day column width: 72px (compact), 88px (standard), 110px (wide)
+  const [dayWidth, setDayWidth] = useState<number>(88);
   const [statusFilter, setStatusFilter] = useState<'all' | 'urgent_only' | 'active_only'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -91,7 +161,7 @@ export function ClientTimelineScreen({
         isToday,
       });
 
-      // Group weeks (starting Monday or first day)
+      // Group weeks
       if (dayOfWeek === 1 || i === 0) {
         if (currentWeekDays > 0) {
           weeks.push({
@@ -171,14 +241,21 @@ export function ClientTimelineScreen({
     [ads]
   );
 
-  // Position calculation for timeline bar
+  // Position calculation for timeline bar (FULL FLIGHT CONTINUOUS BAR)
   const calculateBarPixels = (startDateStr: string, endDateStr: string) => {
     const startDiff = diffCalendarDays(timelineStartStr, startDateStr);
     const durationDays = Math.max(1, diffCalendarDays(startDateStr, endDateStr) + 1);
 
-    const left = startDiff * dayWidth;
-    const width = durationDays * dayWidth;
-    return { left, width };
+    const rawLeft = startDiff * dayWidth;
+    const rawWidth = durationDays * dayWidth;
+    const rawRight = rawLeft + rawWidth;
+
+    // Visible clamp within ruler:
+    const visibleLeft = Math.max(0, rawLeft);
+    const visibleWidth = Math.max(120, rawRight - visibleLeft);
+    const startedBeforeWindow = rawLeft < 0;
+
+    return { rawLeft, rawWidth, visibleLeft, visibleWidth, startedBeforeWindow, durationDays };
   };
 
   const todayLeftPixel = useMemo(() => {
@@ -212,9 +289,9 @@ export function ClientTimelineScreen({
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans select-none">
       {/* ========================================================================= */}
-      {/* 1. CLIENT HEADER: PURE PRESENTATION (ZERO EDITING, ZERO ADMIN TOOLS)       */}
+      {/* 1. CLIENT HEADER: DEDICATED PRESENTATION PORTAL (NO EDITING IN THIS VIEW) */}
       {/* ========================================================================= */}
-      <header className="border-b border-zinc-850 bg-zinc-950/95 backdrop-blur-md sticky top-0 z-40 shrink-0">
+      <header className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md sticky top-0 z-40 shrink-0">
         <div className="px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
           {/* Left: Branding & Show Picker */}
           <div className="flex items-center space-x-4 overflow-hidden">
@@ -227,12 +304,12 @@ export function ClientTimelineScreen({
                   <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
                     Instant Productions
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 font-mono font-bold border border-indigo-800/60">
-                    PORTAL KLIENTA
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 font-mono font-bold border border-indigo-800/60 shadow-sm">
+                    PORTAL KLIENTA (TIMELINE)
                   </span>
                 </div>
                 <h1 className="text-sm font-bold text-white flex items-center space-x-1.5">
-                  <span>Harmonogram Emisji Reklam</span>
+                  <span>Harmonogram Emisji Reklam w Ramówce</span>
                 </h1>
               </div>
             </div>
@@ -263,7 +340,7 @@ export function ClientTimelineScreen({
                     }`}
                   >
                     <span
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2.5 h-2.5 rounded-full ${
                         show.color === 'emerald'
                           ? 'bg-emerald-400'
                           : show.color === 'amber'
@@ -278,11 +355,11 @@ export function ClientTimelineScreen({
             </div>
           </div>
 
-          {/* Right: Read-only Status Badges for Client */}
+          {/* Right: Urgent Status Notice & Admin Switcher */}
           <div className="flex items-center space-x-3 shrink-0">
             {expiredCount > 0 && (
-              <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs font-black animate-pulse">
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs font-black animate-pulse shadow-lg shadow-rose-950/40">
+                <AlertTriangle className="w-4 h-4 text-rose-400" />
                 <span>{expiredCount} do zdjęcia z ramówki!</span>
               </div>
             )}
@@ -290,40 +367,49 @@ export function ClientTimelineScreen({
             {expiringSoonCount > 0 && (
               <div className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-950/60 border border-amber-800/80 text-amber-300 text-xs font-bold">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>{expiringSoonCount} wygasa w tym tygodniu</span>
+                <span>{expiringSoonCount} wygasa wkrótce</span>
               </div>
             )}
 
-            <div className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>{activeCount} aktywnych</span>
-            </div>
+            {/* Quick Switch to Full Management / Admin Panel */}
+            {onOpenAdminPanel && (
+              <button
+                onClick={onOpenAdminPanel}
+                className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-bold transition-all active:scale-95 shadow-sm"
+                title="Przejdź do pełnego panelu zarządzania i edycji reklam"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Panel Zarządzania (Admin)</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Subheader: Programme Broadcast Info & Filter Controls */}
-        <div className="px-4 lg:px-6 h-12 border-t border-zinc-850 bg-zinc-950/80 flex items-center justify-between text-xs overflow-x-auto gap-4">
+        <div className="px-4 lg:px-6 h-12 border-t border-zinc-850 bg-zinc-950/90 flex items-center justify-between text-xs overflow-x-auto gap-4">
           {/* Current Show Broadcast Details */}
           <div className="flex items-center space-x-2 text-zinc-400 shrink-0">
             {currentShow ? (
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-white">{currentShow.title}</span>
+                <span className="font-extrabold text-white text-sm">{currentShow.title}</span>
                 <span>&bull;</span>
                 <span className="font-mono text-zinc-300">{currentShow.channel}</span>
                 <span>&bull;</span>
-                <span className="text-amber-400 font-medium font-mono">
+                <span className="text-amber-400 font-bold font-mono">
                   {currentShow.broadcastSchedule}
                 </span>
                 <span>&bull;</span>
                 <span className="text-indigo-400 font-semibold">
-                  {currentShow.breakCount} przerwy reklamowe
+                  {currentShow.breakCount} bloki reklamowe
                 </span>
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <span className="text-zinc-300 font-semibold">Widok zbiorczy wszystkich pasm TV</span>
+                <span className="text-zinc-200 font-bold">Widok zbiorczy wszystkich pasm TV</span>
                 <span>&bull;</span>
-                <span className="text-zinc-400">{ads.length} zaplanowanych spotów reklamowych</span>
+                <span className="text-zinc-400 font-mono">
+                  {filteredAds.length} spotów w ramówkach
+                </span>
               </div>
             )}
           </div>
@@ -368,7 +454,7 @@ export function ClientTimelineScreen({
             {/* Jump to Today Button */}
             <button
               onClick={scrollToToday}
-              className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold transition-all active:scale-95 shadow-sm"
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-300 font-extrabold transition-all active:scale-95 shadow-md shadow-amber-950/40"
               title="Przewiń do dzisiejszego dnia na osi czasu"
             >
               <Crosshair className="w-3.5 h-3.5 text-amber-400" />
@@ -379,14 +465,14 @@ export function ClientTimelineScreen({
             <div className="flex items-center space-x-1 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
               <span className="text-[10px] text-zinc-500 font-bold px-1.5">SKALA:</span>
               {[
-                { label: 'Kompaktowa', width: 64 },
-                { label: 'Standard (80px)', width: 80 },
-                { label: 'Szeroka (100px)', width: 100 },
+                { label: 'Kompaktowa', width: 72 },
+                { label: 'Standard (88px)', width: 88 },
+                { label: 'Szeroka (110px)', width: 110 },
               ].map((z) => (
                 <button
                   key={z.width}
                   onClick={() => setDayWidth(z.width)}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all ${
+                  className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold transition-all ${
                     dayWidth === z.width
                       ? 'bg-indigo-600 text-white shadow'
                       : 'text-zinc-400 hover:text-zinc-200'
@@ -401,7 +487,7 @@ export function ClientTimelineScreen({
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. THE CLIENT TIMELINE CANVAS (FULL SCREEN, RICH ROWS, NO PRISON BARS)     */}
+      {/* 2. THE CLIENT TIMELINE CANVAS (FULL CONTINUOUS BARS & COLORED BREAKS)      */}
       {/* ========================================================================= */}
       <main className="flex-1 overflow-hidden flex flex-col bg-zinc-950 relative">
         <div
@@ -410,15 +496,15 @@ export function ClientTimelineScreen({
         >
           {/* HEADER RULER (Sticky Top) */}
           <div
-            style={{ width: `${420 + totalTimelineWidth}px` }}
-            className="sticky top-0 z-30 flex bg-zinc-900 border-b border-zinc-800 shrink-0 select-none shadow-xl"
+            style={{ width: `${440 + totalTimelineWidth}px` }}
+            className="sticky top-0 z-30 flex bg-zinc-900 border-b border-zinc-800 shrink-0 select-none shadow-2xl"
           >
             {/* Left Header: Sticky Commercial Details Card Header */}
-            <div className="w-[420px] shrink-0 p-3.5 border-r border-zinc-800 bg-zinc-900 flex items-center justify-between sticky left-0 z-40 shadow-xl">
+            <div className="w-[440px] shrink-0 p-3.5 border-r border-zinc-800 bg-zinc-900 flex items-center justify-between sticky left-0 z-40 shadow-xl">
               <div className="flex items-center space-x-2">
                 <Tv className="w-4 h-4 text-indigo-400" />
                 <span className="font-extrabold text-xs uppercase tracking-wider text-zinc-100">
-                  Reklama & Blok Emisyjny
+                  Blok & Karta Reklamy
                 </span>
               </div>
               <span className="text-[10px] font-mono text-zinc-400 uppercase font-bold">
@@ -429,7 +515,7 @@ export function ClientTimelineScreen({
             {/* Right Header: Calendar Ruler with Months & Days */}
             <div style={{ width: `${totalTimelineWidth}px` }} className="flex flex-col relative shrink-0">
               {/* Month / Week Labels */}
-              <div className="flex h-6 border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <div className="flex h-6 border-b border-zinc-800/80 bg-zinc-950/70 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 {weekHeaders.map((w, idx) => (
                   <div
                     key={idx}
@@ -437,7 +523,7 @@ export function ClientTimelineScreen({
                     className="shrink-0 px-3 border-r border-zinc-800/60 flex items-center justify-between text-indigo-300"
                   >
                     <span>{w.weekLabel}</span>
-                    <span className="text-zinc-600 font-mono text-[9px]">
+                    <span className="text-zinc-500 font-mono text-[9px]">
                       {w.spanDays} dni
                     </span>
                   </div>
@@ -454,7 +540,7 @@ export function ClientTimelineScreen({
                       day.isToday
                         ? 'bg-amber-400/20 text-amber-200 font-black'
                         : day.isWeekend
-                        ? 'bg-zinc-950/50 text-zinc-500'
+                        ? 'bg-zinc-950/60 text-zinc-500'
                         : 'text-zinc-300'
                     }`}
                   >
@@ -488,19 +574,19 @@ export function ClientTimelineScreen({
             </div>
           </div>
 
-          {/* BODY: TIMELINE ROWS (Grouped by Show & Commercial Break) */}
-          <div style={{ width: `${420 + totalTimelineWidth}px` }} className="flex flex-col divide-y divide-zinc-850">
+          {/* BODY: TIMELINE ROWS (Grouped by Show & Commercial Break with Distinct Color Separation) */}
+          <div style={{ width: `${440 + totalTimelineWidth}px` }} className="flex flex-col">
             {filteredShows.map((show) => {
               const showAds = filteredAds.filter((a) => a.showId === show.id);
               const breakNumbers = Array.from({ length: show.breakCount }, (_, i) => i + 1);
 
               return (
-                <div key={show.id} className="flex flex-col">
-                  {/* Show Group Header */}
+                <div key={show.id} className="flex flex-col border-b-4 border-zinc-800/80">
+                  {/* Show Group Header (Distinct Bar) */}
                   <div className="sticky left-0 z-20 flex items-center justify-between bg-zinc-900/95 backdrop-blur-md px-5 py-3 border-b border-zinc-800">
                     <div className="flex items-center space-x-3">
                       <span
-                        className={`w-3.5 h-3.5 rounded-full ring-4 ${
+                        className={`w-4 h-4 rounded-full ring-4 ${
                           show.color === 'emerald'
                             ? 'bg-emerald-400 ring-emerald-500/20'
                             : show.color === 'amber'
@@ -508,10 +594,10 @@ export function ClientTimelineScreen({
                             : 'bg-indigo-400 ring-indigo-500/20'
                         }`}
                       />
-                      <h3 className="text-sm font-extrabold text-white tracking-wide">
+                      <h3 className="text-base font-extrabold text-white tracking-wide">
                         {show.title}
                       </h3>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-mono font-medium">
+                      <span className="text-xs px-3 py-1 rounded-full bg-zinc-800 text-zinc-300 font-mono font-medium">
                         {show.channel} &bull; {show.broadcastSchedule}
                       </span>
                     </div>
@@ -521,29 +607,56 @@ export function ClientTimelineScreen({
                     </span>
                   </div>
 
-                  {/* Commercial Breaks & Spots */}
+                  {/* Commercial Breaks (Each Break has distinct Color Theme!) */}
                   {breakNumbers.map((breakNum) => {
                     const breakAds = showAds.filter((a) => a.breakNumber === breakNum);
+                    const theme = BREAK_THEMES[breakNum] || BREAK_THEMES[1];
+                    const totalDuration = breakAds.reduce((sum, a) => sum + a.durationSec, 0);
 
                     return (
-                      <div key={breakNum} className="flex flex-col">
-                        {/* Break Label Bar */}
-                        <div className="flex bg-zinc-950/90 border-b border-zinc-850/60 py-2 px-5 text-xs font-semibold text-zinc-400">
-                          <div className="w-[420px] shrink-0 sticky left-0 z-10 flex items-center space-x-2">
-                            <Layers className="w-4 h-4 text-indigo-400" />
-                            <span className="font-extrabold text-zinc-200">
-                              Przerwa {breakNum} (Commercial Break {breakNum})
-                            </span>
-                            <span className="text-[11px] text-zinc-500 font-mono">
-                              &bull; {breakAds.length} {breakAds.length === 1 ? 'spot' : 'spoty'}
-                            </span>
+                      <div
+                        key={breakNum}
+                        className={`flex flex-col border-b-2 border-zinc-850 ${theme.borderAccent} border-l-4`}
+                      >
+                        {/* ======================================================== */}
+                        {/* BREAK HEADER BAR: Spans across BOTH Left & Timeline!      */}
+                        {/* ======================================================== */}
+                        <div
+                          style={{ width: `${440 + totalTimelineWidth}px` }}
+                          className={`flex items-center ${theme.headerBg} border-b border-zinc-800/80 py-2.5 px-4 text-xs font-bold ${theme.headerText}`}
+                        >
+                          {/* Sticky left break title */}
+                          <div className="w-[440px] shrink-0 sticky left-0 z-10 flex items-center justify-between pr-4">
+                            <div className="flex items-center space-x-2.5">
+                              <span
+                                className={`px-2 py-0.5 rounded-md ${theme.badgeBg} ${theme.badgeText} font-mono font-black text-[11px] shadow-sm`}
+                              >
+                                BLOK {breakNum}
+                              </span>
+                              <span className="font-extrabold uppercase tracking-wide text-white">
+                                {theme.label}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2 text-[11px] font-mono text-zinc-300">
+                              <span>
+                                {breakAds.length} {breakAds.length === 1 ? 'spot' : 'spoty'}
+                              </span>
+                              <span>&bull;</span>
+                              <span className="font-bold text-white">{totalDuration}s łącznie</span>
+                            </div>
+                          </div>
+
+                          {/* Right break separator line spanning across timeline */}
+                          <div className="flex-1 flex items-center pl-4 opacity-60">
+                            <div className="h-0.5 w-full bg-gradient-to-r from-zinc-700 via-zinc-800 to-transparent rounded" />
                           </div>
                         </div>
 
-                        {/* Each Ad: Row by Row (Left sticky card + Right timeline flight bar) */}
+                        {/* Each Ad in this Break */}
                         {breakAds.length === 0 ? (
                           <div className="flex items-center h-14 border-b border-zinc-850/40 text-xs text-zinc-600 pl-8 italic">
-                            Brak zaplanowanych spotów w tej przerwie reklamowej
+                            Brak zaplanowanych spotów w tym bloku reklamowym
                           </div>
                         ) : (
                           breakAds.map((ad) => {
@@ -556,16 +669,16 @@ export function ClientTimelineScreen({
                             return (
                               <div
                                 key={ad.id}
-                                className={`flex border-b border-zinc-850/60 hover:bg-zinc-900/40 transition-colors h-24 relative group/lane ${
-                                  isExpired ? 'bg-rose-950/15' : ''
-                                }`}
+                                className={`flex border-b border-zinc-850/60 hover:bg-zinc-900/60 transition-colors h-24 relative group/lane ${
+                                  theme.laneTint
+                                } ${isExpired ? 'bg-rose-950/25 ring-1 ring-rose-500/20' : ''}`}
                               >
                                 {/* ======================================================== */}
-                                {/* LEFT STICKY CARD: SPOT DETAILS (ESSENTIAL ONLY)          */}
+                                {/* LEFT STICKY CARD: SPOT DETAILS                           */}
                                 {/* ======================================================== */}
                                 <div
                                   onClick={() => onSelectAd(ad)}
-                                  className="w-[420px] shrink-0 p-3.5 border-r border-zinc-800 bg-zinc-950/95 sticky left-0 z-20 flex items-center justify-between cursor-pointer group-hover/lane:bg-zinc-900 transition-colors shadow-xl"
+                                  className="w-[440px] shrink-0 p-3.5 border-r border-zinc-800 bg-zinc-950/95 sticky left-0 z-20 flex items-center justify-between cursor-pointer group-hover/lane:bg-zinc-900 transition-colors shadow-2xl"
                                 >
                                   {/* Thumbnail & Title/Info */}
                                   <div className="flex items-center space-x-3.5 overflow-hidden min-w-0 pr-3">
@@ -592,7 +705,7 @@ export function ClientTimelineScreen({
                                     {/* Title, Advertiser, Slot */}
                                     <div className="flex flex-col truncate min-w-0">
                                       <div className="flex items-center space-x-1.5 mb-0.5">
-                                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-850 text-indigo-300 font-bold border border-zinc-750">
+                                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-850 text-indigo-300 font-bold border border-zinc-750">
                                           Slot #{ad.slotIndex}
                                         </span>
                                         <span className="text-[10px] text-zinc-400 truncate">
@@ -609,7 +722,7 @@ export function ClientTimelineScreen({
                                       </div>
 
                                       {ad.eventDate && (
-                                        <span className="text-[10px] text-amber-400 truncate font-medium">
+                                        <span className="text-[10px] text-amber-400 truncate font-semibold">
                                           {ad.eventDate}
                                         </span>
                                       )}
@@ -639,19 +752,19 @@ export function ClientTimelineScreen({
                                 </div>
 
                                 {/* ======================================================== */}
-                                {/* RIGHT SIDE: TIMELINE FLIGHT BAR (HIGH CONTRAST, PRESTIGE) */}
+                                {/* RIGHT SIDE: FULL FLIGHT TIMELINE BAR (NO INCOMPLETE BARS) */}
                                 {/* ======================================================== */}
                                 <div
                                   style={{ width: `${totalTimelineWidth}px` }}
                                   className="relative h-full flex items-center p-3 shrink-0 overflow-hidden"
                                 >
-                                  {/* Grid Day Lines (Subtle, no harsh prison bars) */}
+                                  {/* Grid Day Lines */}
                                   <div className="absolute inset-0 flex pointer-events-none">
                                     {dayList.map((day, idx) => (
                                       <div
                                         key={idx}
                                         style={{ width: `${dayWidth}px` }}
-                                        className={`shrink-0 border-r border-zinc-850/30 ${
+                                        className={`shrink-0 border-r border-zinc-850/40 ${
                                           day.isToday
                                             ? 'bg-amber-400/5'
                                             : day.isWeekend
@@ -662,50 +775,60 @@ export function ClientTimelineScreen({
                                     ))}
                                   </div>
 
-                                  {/* Today vertical line spanning whole canvas */}
+                                  {/* Today vertical line spanning canvas */}
                                   {todayLeftPixel >= 0 && (
                                     <div
                                       style={{ left: `${todayLeftPixel + dayWidth / 2}px` }}
-                                      className="absolute top-0 bottom-0 w-0.5 bg-amber-400/80 z-10 pointer-events-none shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+                                      className="absolute top-0 bottom-0 w-0.5 bg-amber-400/90 z-20 pointer-events-none shadow-[0_0_10px_rgba(251,191,36,0.8)]"
                                     />
                                   )}
 
-                                  {/* TIMELINE FLIGHT BAR */}
+                                  {/* FULL TIMELINE FLIGHT BAR */}
                                   <div
                                     onClick={() => onSelectAd(ad)}
-                                    style={{ left: `${barPos.left}px`, width: `${barPos.width}px` }}
-                                    className={`absolute h-14 rounded-2xl px-3 flex items-center justify-between cursor-pointer shadow-xl transition-all duration-200 hover:scale-[1.01] hover:z-20 border select-none ${
+                                    style={{
+                                      left: `${barPos.visibleLeft}px`,
+                                      width: `${barPos.visibleWidth}px`,
+                                    }}
+                                    className={`absolute h-14 rounded-2xl px-3 flex items-center justify-between cursor-pointer shadow-xl transition-all duration-200 hover:scale-[1.008] hover:z-30 border select-none ${
                                       isTakenOff
                                         ? 'bg-zinc-900/60 border-zinc-800 text-zinc-500 line-through opacity-60'
                                         : isExpired
-                                        ? 'bg-gradient-to-r from-rose-950 via-rose-900 to-rose-950 border-rose-500 text-rose-100 ring-2 ring-rose-500/50 shadow-rose-950/60 animate-pulse'
+                                        ? 'bg-gradient-to-r from-rose-900 via-rose-800 to-rose-950 border-2 border-rose-400 text-white shadow-rose-950/80 ring-2 ring-rose-500/50 animate-pulse'
                                         : isExpiring
-                                        ? 'bg-gradient-to-r from-amber-950 via-zinc-900 to-amber-950 border-amber-500 text-amber-100 shadow-amber-950/40 ring-1 ring-amber-500/30'
-                                        : 'bg-gradient-to-r from-zinc-900 via-indigo-950/80 to-zinc-900 border-zinc-700 hover:border-indigo-400 text-zinc-100 shadow-lg'
+                                        ? 'bg-gradient-to-r from-amber-600 via-amber-700 to-amber-900 border-2 border-amber-300 text-zinc-950 font-bold shadow-amber-950/60'
+                                        : 'bg-gradient-to-r from-emerald-800 via-emerald-900 to-zinc-900 border-2 border-emerald-400 hover:border-emerald-300 text-white shadow-emerald-950/50'
                                     }`}
                                   >
-                                    {/* Bar Left: Mini Poster + Title */}
-                                    <div className="flex items-center space-x-2.5 truncate min-w-0">
+                                    {/* Bar Left: Poster + Title + Start notice */}
+                                    <div className="flex items-center space-x-2.5 truncate min-w-0 pr-3">
+                                      {barPos.startedBeforeWindow && (
+                                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/60 text-zinc-300 shrink-0 font-bold">
+                                          ◀ Od {formatShortDate(ad.startDate)}
+                                        </span>
+                                      )}
+
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
                                         src={ad.frameGrabUrl}
                                         alt=""
-                                        className="w-10 aspect-video rounded-lg object-cover ring-1 ring-white/10 shrink-0"
+                                        className="w-10 aspect-video rounded-lg object-cover ring-1 ring-white/20 shrink-0 shadow"
                                       />
                                       <div className="flex flex-col truncate leading-tight">
-                                        <div className="flex items-center space-x-1.5 truncate">
-                                          <span className="text-xs font-bold truncate text-white">
+                                        <div className="flex items-center space-x-2 truncate">
+                                          <span className="text-xs font-black truncate text-white drop-shadow">
                                             {ad.title}
                                           </span>
-                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/60 text-zinc-300 font-mono font-semibold">
+                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/60 text-zinc-200 font-mono font-bold shrink-0">
                                             {ad.durationSec}s
                                           </span>
                                         </div>
-                                        <span className="text-[10px] text-zinc-400 truncate">
+                                        <span className="text-[10px] text-zinc-200/90 truncate font-mono">
                                           Emisja: {formatShortDate(ad.startDate)} &rarr;{' '}
-                                          <b className={isExpired ? 'text-rose-300' : 'text-amber-300'}>
+                                          <b className="text-white font-black underline">
                                             {formatShortDate(ad.endDate)}
-                                          </b>
+                                          </b>{' '}
+                                          ({barPos.durationDays} dni w ramówce)
                                         </span>
                                       </div>
                                     </div>
@@ -713,17 +836,17 @@ export function ClientTimelineScreen({
                                     {/* Bar Right: Deadline Badge */}
                                     <div className="shrink-0 ml-3">
                                       <div
-                                        className={`px-2.5 py-1 rounded-xl font-mono text-[10px] font-black uppercase flex items-center space-x-1 shadow ${
+                                        className={`px-3 py-1 rounded-xl font-mono text-[10px] font-black uppercase flex items-center space-x-1.5 shadow-lg ${
                                           isExpired
-                                            ? 'bg-rose-600 text-white animate-bounce'
+                                            ? 'bg-rose-600 text-white animate-bounce ring-2 ring-white/30'
                                             : isExpiring
-                                            ? 'bg-amber-500 text-zinc-950 font-black'
-                                            : 'bg-zinc-800 text-emerald-300 border border-emerald-500/30'
+                                            ? 'bg-zinc-950 text-amber-300 border border-amber-400'
+                                            : 'bg-zinc-950 text-emerald-300 border border-emerald-400'
                                         }`}
                                       >
                                         {isExpired ? (
                                           <>
-                                            <AlertTriangle className="w-3 h-3 text-white fill-current" />
+                                            <AlertTriangle className="w-3.5 h-3.5 text-white fill-current" />
                                             <span>TERMIN MINĄŁ!</span>
                                           </>
                                         ) : (

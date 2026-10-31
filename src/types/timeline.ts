@@ -50,5 +50,5 @@ export interface CommercialShow {
   createdAt: string;
 }
 
-export type TimelineViewMode = 'timeline' | 'matrix' | 'urgent_radar';
+export type TimelineViewMode = 'client' | 'timeline' | 'matrix' | 'urgent_radar';
 

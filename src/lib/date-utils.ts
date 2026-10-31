@@ -41,7 +41,7 @@ export function getDaysRemaining(endDateStr: string, referenceDate: Date = new D
 
 export function formatDaysRemainingText(
   endDateStr: string,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date('2026-10-31T00:00:00')
 ): {
   text: string;
   badgeClass: string;
@@ -53,8 +53,7 @@ export function formatDaysRemainingText(
   if (days < 0) {
     const absDays = Math.abs(days);
     return {
-      text:
-        absDays === 1 ? 'Expired (1 day ago!)' : `Expired (${absDays} days ago!)`,
+      text: absDays === 1 ? 'Wygasła (wczoraj!)' : `Wygasła (${absDays} dni temu!)`,
       badgeClass:
         'bg-rose-500/20 text-rose-300 border-rose-500/40 ring-1 ring-rose-500/30 animate-pulse',
       isUrgent: true,
@@ -64,7 +63,7 @@ export function formatDaysRemainingText(
 
   if (days === 0) {
     return {
-      text: 'EXPIRES TODAY!',
+      text: 'WYGASA DZIŚ!',
       badgeClass:
         'bg-rose-600 text-white font-bold border-rose-400 ring-2 ring-rose-500 animate-bounce',
       isUrgent: true,
@@ -74,7 +73,7 @@ export function formatDaysRemainingText(
 
   if (days === 1) {
     return {
-      text: 'Expires tomorrow!',
+      text: 'Wygasa jutro!',
       badgeClass:
         'bg-amber-500/25 text-amber-300 border-amber-500/40 font-bold ring-1 ring-amber-500/30',
       isUrgent: true,
@@ -84,16 +83,16 @@ export function formatDaysRemainingText(
 
   if (days <= 5) {
     return {
-      text: `${days} days left`,
-      badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      text: `Wygasa za ${days} dni`,
+      badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-bold',
       isUrgent: true,
       isExpired: false,
     };
   }
 
   return {
-    text: `Active: ${days} days`,
-    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    text: `Aktywna: jeszcze ${days} dni`,
+    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-bold',
     isUrgent: false,
     isExpired: false,
   };
@@ -102,7 +101,7 @@ export function formatDaysRemainingText(
 export function formatDateDisplay(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-GB', {
+  return date.toLocaleDateString('pl-PL', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -125,10 +124,14 @@ export function getTodayString(): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Calculates calendar days difference from dateStrA to dateStrB: (dateB - dateA) in days.
+ * Example: diffCalendarDays('2026-10-10', '2026-10-15') returns +5.
+ */
 export function diffCalendarDays(dateStrA: string, dateStrB: string): number {
   const a = new Date(dateStrA + 'T00:00:00');
   const b = new Date(dateStrB + 'T00:00:00');
-  return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export function toISODateString(d: Date): string {
