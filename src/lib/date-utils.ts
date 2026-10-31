@@ -133,3 +133,24 @@ export function getTodayString(): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Difference in calendar days between two YYYY-MM-DD strings
+ */
+export function diffCalendarDays(dateStrA: string, dateStrB: string): number {
+  const a = new Date(dateStrA + 'T00:00:00');
+  const b = new Date(dateStrB + 'T00:00:00');
+  return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Formats ISO date to YYYY-MM-DD
+ */
+export function toISODateString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+

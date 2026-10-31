@@ -64,3 +64,4 @@ npm run build
 Aplikacja jest w 100% zoptymalizowana pod Vercel (Next.js 16 App Router, Turbopack, Tailwind CSS v4):
 1. Zaloguj się do CLI Vercel: `npx vercel`
 2. Lub połącz repozytorium GitHub w panelu [vercel.com](https://vercel.com).
+

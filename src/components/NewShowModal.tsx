@@ -231,3 +231,4 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
     </dialog>
   );
 }
+
