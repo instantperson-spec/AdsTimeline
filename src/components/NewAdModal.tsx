@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Plus, Calendar, Film, Layers, Upload, Clock, Check } from 'lucide-react';
+import { X, Plus, Pencil, Calendar, Film, Upload, Check } from 'lucide-react';
 import { CommercialAd, CommercialShow, AdCategory } from '@/types/timeline';
 import { computeAdStatus } from '@/lib/date-utils';
 
@@ -11,7 +11,9 @@ interface NewAdModalProps {
   shows: CommercialShow[];
   initialShowId?: string;
   initialBreakNumber?: number;
+  editAd?: CommercialAd | null;
   onCreateAd: (ad: CommercialAd) => void;
+  onUpdateAd?: (ad: CommercialAd) => void;
 }
 
 const CATEGORIES: AdCategory[] = [
@@ -29,8 +31,11 @@ export function NewAdModal({
   shows,
   initialShowId,
   initialBreakNumber,
+  editAd,
   onCreateAd,
+  onUpdateAd,
 }: NewAdModalProps) {
+  const isEditMode = Boolean(editAd);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
   const [showId, setShowId] = useState(initialShowId || shows[0]?.id || '');
@@ -50,9 +55,30 @@ export function NewAdModal({
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
+    if (!isOpen) return;
+
+    if (editAd) {
+      setShowId(editAd.showId);
+      setBreakNumber(editAd.breakNumber);
+      setSlotIndex(editAd.slotIndex);
+      setTitle(editAd.title);
+      setAdvertiser(editAd.advertiser);
+      setCategory(editAd.category);
+      setDurationSec(editAd.durationSec);
+      setStartDate(editAd.startDate);
+      setEndDate(editAd.endDate);
+      setIsTimeSensitive(editAd.isTimeSensitive);
+      setEventDate(editAd.eventDate || '');
+      setReplacementAction(editAd.replacementAction);
+      setFrameGrabUrl(editAd.frameGrabUrl);
+      setVideoUrl(editAd.videoUrl || '/samples/nature-clip.mp4');
+      setNotes(editAd.notes || '');
+      return;
+    }
+
     if (initialShowId) setShowId(initialShowId);
     if (initialBreakNumber) setBreakNumber(initialBreakNumber);
-  }, [initialShowId, initialBreakNumber]);
+  }, [isOpen, editAd, initialShowId, initialBreakNumber]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -88,8 +114,8 @@ export function NewAdModal({
     e.preventDefault();
     if (!title.trim() || !advertiser.trim()) return;
 
-    const newAdData: CommercialAd = {
-      id: `ad-${Date.now()}`,
+    const payload: CommercialAd = {
+      id: editAd?.id || `ad-${Date.now()}`,
       showId,
       showTitle: selectedShow?.title || '',
       breakNumber,
@@ -100,26 +126,35 @@ export function NewAdModal({
       durationSec,
       startDate,
       endDate,
-      frameGrabUrl: frameGrabUrl.trim() || 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&auto=format&fit=crop&q=80',
+      frameGrabUrl:
+        frameGrabUrl.trim() ||
+        'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&auto=format&fit=crop&q=80',
       videoUrl: videoUrl.trim() || '/samples/nature-clip.mp4',
       isTimeSensitive,
       eventDate: eventDate.trim() || undefined,
       replacementAction: replacementAction.trim() || 'Replace with station promo.',
       notes: notes.trim() || undefined,
-      status: 'active',
-      createdAt: new Date().toISOString(),
+      status: editAd?.status || 'active',
+      takenOffAt: editAd?.takenOffAt,
+      replacementAdTitle: editAd?.replacementAdTitle,
+      createdAt: editAd?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    newAdData.status = computeAdStatus(newAdData);
+    payload.status = computeAdStatus(payload);
 
-    onCreateAd(newAdData);
+    if (isEditMode && onUpdateAd) {
+      onUpdateAd(payload);
+    } else {
+      onCreateAd(payload);
+    }
     onClose();
 
-    // Reset fields
-    setTitle('');
-    setAdvertiser('');
-    setEventDate('');
+    if (!isEditMode) {
+      setTitle('');
+      setAdvertiser('');
+      setEventDate('');
+    }
   };
 
   return (
@@ -134,14 +169,16 @@ export function NewAdModal({
         <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
-              <Plus className="w-5 h-5" />
+              {isEditMode ? <Pencil className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
             </div>
             <div>
               <h2 id="new-ad-modal-title" className="text-sm font-bold text-zinc-100">
-                Add New Ad / Time-Sensitive Spot
+                {isEditMode ? 'Edit commercial spot' : 'Add new ad / time-sensitive spot'}
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Set break slot and flight dates to control when the spot must be pulled
+                {isEditMode
+                  ? 'Update break slot, flight dates, and pull instructions'
+                  : 'Set break slot and flight dates to control when the spot must be pulled'}
               </p>
             </div>
           </div>
@@ -409,7 +446,7 @@ export function NewAdModal({
               className="flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
             >
               <Check className="w-4 h-4" />
-              <span>Add to log</span>
+              <span>{isEditMode ? 'Save changes' : 'Add to log'}</span>
             </button>
           </div>
         </form>

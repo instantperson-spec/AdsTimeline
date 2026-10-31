@@ -21,8 +21,8 @@ import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 
 import { AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 
-const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v3';
-const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v3';
+const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v4';
+const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v4';
 
 const FAITH_WORLD_TV = 'Faith World TV';
 
@@ -51,6 +51,7 @@ export default function AdsTimelineApp() {
   const [isNewAdOpen, setIsNewAdOpen] = useState(false);
   const [newAdShowId, setNewAdShowId] = useState<string | undefined>(undefined);
   const [newAdBreakNumber, setNewAdBreakNumber] = useState<number | undefined>(undefined);
+  const [editingAd, setEditingAd] = useState<CommercialAd | null>(null);
   const [isNewShowOpen, setIsNewShowOpen] = useState(false);
   const [isCueSheetOpen, setIsCueSheetOpen] = useState(false);
 
@@ -114,9 +115,86 @@ export default function AdsTimelineApp() {
   };
 
   // Handlers
+  const openNewAdModal = (showId?: string, breakNumber?: number) => {
+    setEditingAd(null);
+    setNewAdShowId(showId);
+    setNewAdBreakNumber(breakNumber);
+    setIsNewAdOpen(true);
+  };
+
+  const openEditAdModal = (ad: CommercialAd) => {
+    setEditingAd(ad);
+    setNewAdShowId(ad.showId);
+    setNewAdBreakNumber(ad.breakNumber);
+    setIsNewAdOpen(true);
+  };
+
+  const closeAdModal = () => {
+    setIsNewAdOpen(false);
+    setEditingAd(null);
+    setNewAdShowId(undefined);
+    setNewAdBreakNumber(undefined);
+  };
+
   const handleCreateAd = (newAd: CommercialAd) => {
     const nextAds = [newAd, ...ads];
     saveAds(nextAds);
+  };
+
+  const handleUpdateAd = (updated: CommercialAd) => {
+    const withStatus = { ...updated, status: computeAdStatus(updated) };
+    const nextAds = ads.map((a) => (a.id === withStatus.id ? withStatus : a));
+    saveAds(nextAds);
+    if (selectedAd?.id === withStatus.id) {
+      setSelectedAd(withStatus);
+    }
+  };
+
+  const handleAddBreak = (showId: string) => {
+    const show = shows.find((s) => s.id === showId);
+    if (!show) return;
+    const nextShows = shows.map((s) =>
+      s.id === showId ? { ...s, breakCount: s.breakCount + 1 } : s
+    );
+    saveShows(nextShows);
+  };
+
+  const handleRemoveBreak = (showId: string, breakNumber: number) => {
+    const show = shows.find((s) => s.id === showId);
+    if (!show || show.breakCount <= 1) return;
+
+    const spotsInBreak = ads.filter(
+      (a) => a.showId === showId && a.breakNumber === breakNumber
+    );
+    const spotNote =
+      spotsInBreak.length > 0
+        ? ` This will permanently delete ${spotsInBreak.length} spot(s) in Break ${breakNumber}.`
+        : '';
+    if (
+      !confirm(
+        `Remove commercial break ${breakNumber} from "${show.title}"?${spotNote} Higher break numbers will shift down.`
+      )
+    ) {
+      return;
+    }
+
+    const nextAds = ads
+      .filter((a) => !(a.showId === showId && a.breakNumber === breakNumber))
+      .map((a) => {
+        if (a.showId !== showId || a.breakNumber <= breakNumber) return a;
+        return { ...a, breakNumber: a.breakNumber - 1 };
+      })
+      .map((a) => ({ ...a, status: computeAdStatus(a) }));
+
+    const nextShows = shows.map((s) =>
+      s.id === showId ? { ...s, breakCount: s.breakCount - 1 } : s
+    );
+
+    saveShows(nextShows);
+    saveAds(nextAds);
+    if (selectedAd && selectedAd.showId === showId && selectedAd.breakNumber === breakNumber) {
+      setSelectedAd(null);
+    }
   };
 
   const handleDeleteAd = (adId: string) => {
@@ -172,11 +250,9 @@ export default function AdsTimelineApp() {
         onSelectShow={setSelectedShowId}
         viewMode={viewMode}
         onChangeViewMode={setViewMode}
-        onOpenNewAd={() => {
-          setNewAdShowId(selectedShowId !== 'all' ? selectedShowId : undefined);
-          setNewAdBreakNumber(undefined);
-          setIsNewAdOpen(true);
-        }}
+        onOpenNewAd={() =>
+          openNewAdModal(selectedShowId !== 'all' ? selectedShowId : undefined)
+        }
         onOpenNewShow={() => setIsNewShowOpen(true)}
         onOpenCueSheet={() => setIsCueSheetOpen(true)}
         expiredCount={expiredCount}
@@ -212,11 +288,9 @@ export default function AdsTimelineApp() {
             selectedShowId={selectedShowId}
             onSelectAd={setSelectedAd}
             onTakeOffAd={handleTakeOffAd}
-            onOpenNewAd={() => {
-              setNewAdShowId(selectedShowId !== 'all' ? selectedShowId : undefined);
-              setNewAdBreakNumber(undefined);
-              setIsNewAdOpen(true);
-            }}
+            onOpenNewAd={() =>
+              openNewAdModal(selectedShowId !== 'all' ? selectedShowId : undefined)
+            }
           />
         )}
 
@@ -225,12 +299,10 @@ export default function AdsTimelineApp() {
             ads={ads}
             shows={shows}
             selectedShowId={selectedShowId}
-            onSelectAd={setSelectedAd}
-            onOpenNewAdForBreak={(sId, bNum) => {
-              setNewAdShowId(sId);
-              setNewAdBreakNumber(bNum);
-              setIsNewAdOpen(true);
-            }}
+            onEditAd={openEditAdModal}
+            onOpenNewAdForBreak={(sId, bNum) => openNewAdModal(sId, bNum)}
+            onAddBreak={handleAddBreak}
+            onRemoveBreak={handleRemoveBreak}
             onDeleteAd={handleDeleteAd}
             onTakeOffAd={handleTakeOffAd}
           />
@@ -258,11 +330,13 @@ export default function AdsTimelineApp() {
 
       <NewAdModal
         isOpen={isNewAdOpen}
-        onClose={() => setIsNewAdOpen(false)}
+        onClose={closeAdModal}
         shows={shows}
         initialShowId={newAdShowId}
         initialBreakNumber={newAdBreakNumber}
+        editAd={editingAd}
         onCreateAd={handleCreateAd}
+        onUpdateAd={handleUpdateAd}
       />
 
       <NewShowModal

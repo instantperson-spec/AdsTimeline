@@ -4,6 +4,8 @@ import React from 'react';
 import {
   Layers,
   Plus,
+  Minus,
+  Pencil,
   Play,
   Clock,
   AlertTriangle,
@@ -19,8 +21,10 @@ interface BreaksSlotMatrixProps {
   ads: CommercialAd[];
   shows: CommercialShow[];
   selectedShowId: string;
-  onSelectAd: (ad: CommercialAd) => void;
+  onEditAd: (ad: CommercialAd) => void;
   onOpenNewAdForBreak: (showId: string, breakNumber: number) => void;
+  onAddBreak: (showId: string) => void;
+  onRemoveBreak: (showId: string, breakNumber: number) => void;
   onDeleteAd: (adId: string) => void;
   onTakeOffAd: (adId: string) => void;
 }
@@ -29,8 +33,10 @@ export function BreaksSlotMatrix({
   ads,
   shows,
   selectedShowId,
-  onSelectAd,
+  onEditAd,
   onOpenNewAdForBreak,
+  onAddBreak,
+  onRemoveBreak,
   onDeleteAd,
   onTakeOffAd,
 }: BreaksSlotMatrixProps) {
@@ -47,7 +53,7 @@ export function BreaksSlotMatrix({
         return (
           <div key={show.id} className="space-y-4">
             {/* Show Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800 gap-3 flex-wrap">
               <div className="flex items-center space-x-3">
                 <div
                   className={`w-3 h-3 rounded-full ${
@@ -67,6 +73,15 @@ export function BreaksSlotMatrix({
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => onAddBreak(show.id)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition-colors"
+                title="Add a new commercial break at the end"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add commercial break</span>
+              </button>
             </div>
 
             {/* Breaks Columns / Grid */}
@@ -92,17 +107,28 @@ export function BreaksSlotMatrix({
                             Break {breakNum}
                           </h3>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[11px] font-mono text-zinc-400">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-[11px] font-mono text-zinc-400 mr-1">
                             {totalDuration}s total
                           </span>
                           <button
+                            type="button"
                             onClick={() => onOpenNewAdForBreak(show.id, breakNum)}
                             className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
                             title="Add ad to this break"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
+                          {show.breakCount > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => onRemoveBreak(show.id, breakNum)}
+                              className="p-1 rounded-lg bg-zinc-800 hover:bg-rose-950 text-zinc-400 hover:text-rose-300 transition-colors"
+                              title="Remove this commercial break"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -128,14 +154,23 @@ export function BreaksSlotMatrix({
                             return (
                               <div
                                 key={ad.id}
-                                className={`rounded-xl border p-3 transition-all flex flex-col justify-between ${
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => onEditAd(ad)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    onEditAd(ad);
+                                  }
+                                }}
+                                className={`rounded-xl border p-3 transition-all flex flex-col justify-between cursor-pointer ${
                                   isTakenOff
                                     ? 'bg-zinc-950/40 border-zinc-800 opacity-60'
                                     : isExpired
                                     ? 'bg-rose-950/20 border-rose-500/80 shadow-md shadow-rose-950/30'
                                     : isExpiring
                                     ? 'bg-amber-950/20 border-amber-500/60'
-                                    : 'bg-zinc-950/80 border-zinc-800 hover:border-zinc-700'
+                                    : 'bg-zinc-950/80 border-zinc-800 hover:border-indigo-500/60 hover:ring-1 hover:ring-indigo-500/30'
                                 }`}
                               >
                                 <div>
@@ -153,10 +188,7 @@ export function BreaksSlotMatrix({
 
                                   {/* Thumbnail & Title */}
                                   <div className="flex items-start space-x-2.5">
-                                    <div
-                                      onClick={() => onSelectAd(ad)}
-                                      className="relative w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0 cursor-pointer group/vid ring-1 ring-zinc-800"
-                                    >
+                                    <div className="relative w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0 group/vid ring-1 ring-zinc-800">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
                                         src={ad.frameGrabUrl}
@@ -169,10 +201,7 @@ export function BreaksSlotMatrix({
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                      <h4
-                                        onClick={() => onSelectAd(ad)}
-                                        className="text-xs font-bold text-zinc-200 hover:text-indigo-400 transition-colors cursor-pointer line-clamp-1"
-                                      >
+                                      <h4 className="text-xs font-bold text-zinc-200 group-hover:text-indigo-300 transition-colors line-clamp-1">
                                         {ad.title}
                                       </h4>
                                       <p className="text-[10px] text-zinc-400 truncate">
@@ -194,17 +223,19 @@ export function BreaksSlotMatrix({
 
                                 {/* Card footer actions */}
                                 <div className="mt-3 pt-2 border-t border-zinc-850 flex items-center justify-between text-[11px]">
-                                  <button
-                                    onClick={() => onSelectAd(ad)}
-                                    className="text-indigo-400 hover:text-indigo-300 font-semibold"
-                                  >
-                                    Video preview
-                                  </button>
+                                  <span className="text-indigo-400 font-semibold flex items-center gap-1">
+                                    <Pencil className="w-3 h-3" />
+                                    Click to edit
+                                  </span>
 
                                   <div className="flex items-center space-x-2">
                                     {!isTakenOff && (
                                       <button
-                                        onClick={() => onTakeOffAd(ad.id)}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onTakeOffAd(ad.id);
+                                        }}
                                         className="text-xs text-rose-400 hover:text-rose-300 font-medium"
                                         title="Take this spot off air"
                                       >
@@ -212,7 +243,9 @@ export function BreaksSlotMatrix({
                                       </button>
                                     )}
                                     <button
-                                      onClick={() => {
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         if (confirm(`Delete spot "${ad.title}"?`)) {
                                           onDeleteAd(ad.id);
                                         }
