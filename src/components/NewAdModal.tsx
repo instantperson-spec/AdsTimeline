@@ -50,8 +50,8 @@ export function NewAdModal({
   const [isTimeSensitive, setIsTimeSensitive] = useState(true);
   const [eventDate, setEventDate] = useState('');
   const [replacementAction, setReplacementAction] = useState('Replace with universal station filler after expiry.');
-  const [frameGrabUrl, setFrameGrabUrl] = useState('https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&auto=format&fit=crop&q=80');
-  const [videoUrl, setVideoUrl] = useState('/samples/nature-clip.mp4');
+  const [frameGrabUrl, setFrameGrabUrl] = useState('/placeholder-poster.svg');
+  const [videoUrl, setVideoUrl] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export function NewAdModal({
       setEventDate(editAd.eventDate || '');
       setReplacementAction(editAd.replacementAction);
       setFrameGrabUrl(editAd.frameGrabUrl);
-      setVideoUrl(editAd.videoUrl || '/samples/nature-clip.mp4');
+      setVideoUrl(editAd.videoUrl || '');
       setNotes(editAd.notes || '');
       return;
     }
@@ -126,10 +126,8 @@ export function NewAdModal({
       durationSec,
       startDate,
       endDate,
-      frameGrabUrl:
-        frameGrabUrl.trim() ||
-        'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&auto=format&fit=crop&q=80',
-      videoUrl: videoUrl.trim() || '/samples/nature-clip.mp4',
+      frameGrabUrl: frameGrabUrl.trim() || '/placeholder-poster.svg',
+      videoUrl: videoUrl.trim() || undefined,
       isTimeSensitive,
       eventDate: eventDate.trim() || undefined,
       replacementAction: replacementAction.trim() || 'Replace with station promo.',

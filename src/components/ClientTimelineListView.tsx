@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Calendar,
   Clock,
@@ -22,6 +22,8 @@ import {
   Check,
   Info,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import {
@@ -32,13 +34,134 @@ import {
   toISODateString,
 } from '@/lib/date-utils';
 
+const GANTT_VISIBLE_DAYS = 42;
+
+/** Distinct lane styling per commercial break (physical + color separation). */
+const BREAK_LANE_THEME: Record<
+  number,
+  {
+    label: string;
+    header: string;
+    lane: string;
+    bar: string;
+    accent: string;
+    slotTag: string;
+  }
+> = {
+  1: {
+    label: 'Break 1',
+    header: 'bg-indigo-950/90 border-indigo-500/50 text-indigo-100',
+    lane: 'bg-indigo-950/25 border-l-4 border-l-indigo-500',
+    bar: 'bg-indigo-900/90 border-indigo-400/70 hover:border-indigo-300',
+    accent: 'border-indigo-500',
+    slotTag: 'text-indigo-300',
+  },
+  2: {
+    label: 'Break 2',
+    header: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-100',
+    lane: 'bg-emerald-950/25 border-l-4 border-l-emerald-500',
+    bar: 'bg-emerald-900/90 border-emerald-400/70 hover:border-emerald-300',
+    accent: 'border-emerald-500',
+    slotTag: 'text-emerald-300',
+  },
+  3: {
+    label: 'Break 3',
+    header: 'bg-amber-950/90 border-amber-500/50 text-amber-100',
+    lane: 'bg-amber-950/25 border-l-4 border-l-amber-500',
+    bar: 'bg-amber-900/90 border-amber-400/70 hover:border-amber-300',
+    accent: 'border-amber-500',
+    slotTag: 'text-amber-300',
+  },
+};
+
+function breakTheme(breakNumber: number) {
+  return BREAK_LANE_THEME[breakNumber] ?? BREAK_LANE_THEME[((breakNumber - 1) % 3) + 1];
+}
+
+const GANTT_DAY_SCALES: { label: string; width: number }[] = [
+  { label: 'Minimal grid (48px)', width: 48 },
+  { label: 'Compact (56px)', width: 56 },
+  { label: 'Standard (72px)', width: 72 },
+  { label: 'Wide (96px)', width: 96 },
+];
+
+const GANTT_LABEL_COL_PX = 360;
+
+/** Fixed column width — border included so header + body stay aligned. */
+function dayColumnStyle(dayWidth: number): React.CSSProperties {
+  return {
+    width: dayWidth,
+    minWidth: dayWidth,
+    maxWidth: dayWidth,
+    flex: `0 0 ${dayWidth}px`,
+  };
+}
+
+const DAY_COLUMN_BORDER = 'box-border border-r border-zinc-700/80 shrink-0';
+
+type GanttDay = { isToday: boolean; isWeekend: boolean; dayOfWeekName?: string; dayOfMonth?: number };
+
+function labelColumnStyle(): React.CSSProperties {
+  return {
+    width: GANTT_LABEL_COL_PX,
+    minWidth: GANTT_LABEL_COL_PX,
+    maxWidth: GANTT_LABEL_COL_PX,
+    flex: `0 0 ${GANTT_LABEL_COL_PX}px`,
+  };
+}
+
+function timelineTrackStyle(totalTimelineWidth: number): React.CSSProperties {
+  return {
+    width: totalTimelineWidth,
+    minWidth: totalTimelineWidth,
+    maxWidth: totalTimelineWidth,
+    flex: `0 0 ${totalTimelineWidth}px`,
+  };
+}
+
+function GanttDayGrid({
+  dayList,
+  dayWidth,
+}: {
+  dayList: GanttDay[];
+  dayWidth: number;
+}) {
+  return (
+    <div className="flex h-full w-full pointer-events-none" aria-hidden>
+      {dayList.map((day, idx) => (
+        <div
+          key={idx}
+          style={dayColumnStyle(dayWidth)}
+          className={`${DAY_COLUMN_BORDER} h-full ${
+            day.isToday
+              ? 'border-amber-500/35 bg-amber-400/[0.07]'
+              : day.isWeekend
+              ? 'border-zinc-700/60 bg-zinc-950/35'
+              : 'bg-transparent'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function defaultGanttWindowStart(today: Date): Date {
+  const start = new Date(today);
+  start.setDate(start.getDate() - 10);
+  return start;
+}
+
+export type TimelineSubView = 'cards_timeline' | 'gantt_timeline';
+
 interface ClientTimelineListViewProps {
   ads: CommercialAd[];
   shows: CommercialShow[];
   selectedShowId: string;
   onSelectAd: (ad: CommercialAd) => void;
-  onTakeOffAd: (adId: string, note?: string) => void;
-  onOpenNewAd: () => void;
+  subView: TimelineSubView;
+  isClientView?: boolean;
+  onTakeOffAd?: (adId: string, note?: string) => void;
+  onOpenNewAd?: () => void;
 }
 
 export function ClientTimelineListView({
@@ -46,14 +169,16 @@ export function ClientTimelineListView({
   shows,
   selectedShowId,
   onSelectAd,
+  subView,
+  isClientView = false,
   onTakeOffAd,
   onOpenNewAd,
 }: ClientTimelineListViewProps) {
-  // Primary subview toggle: 'cards_timeline' (clean presentation cards with mini-timeline) vs 'gantt_timeline' (full horizontal timeline)
-  const [subView, setSubView] = useState<'cards_timeline' | 'gantt_timeline'>('cards_timeline');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'urgent_only' | 'active_only'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'urgent_only' | 'active_only'>(
+    isClientView ? 'active_only' : 'all'
+  );
   const [searchQuery, setSearchQuery] = useState('');
-  const [dayWidth, setDayWidth] = useState<number>(72);
+  const [dayWidth, setDayWidth] = useState<number>(48);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -61,10 +186,46 @@ export function ClientTimelineListView({
   const todayStr = '2026-10-31';
   const todayDate = useMemo(() => new Date(todayStr + 'T00:00:00'), [todayStr]);
 
-  // Timeline window for Gantt mode: 10 days before today to 25 days after today (35 days total)
+  const [ganttWindowStart, setGanttWindowStart] = useState<Date>(() =>
+    defaultGanttWindowStart(new Date(todayStr + 'T00:00:00'))
+  );
+
+  const scrollGanttToDate = useCallback(
+    (dateStr: string, smooth = true) => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      const startStr = toISODateString(ganttWindowStart);
+      const diff = diffCalendarDays(startStr, dateStr);
+      el.scrollTo({
+        left: Math.max(0, diff * dayWidth - el.clientWidth / 3),
+        behavior: smooth ? 'smooth' : 'auto',
+      });
+    },
+    [ganttWindowStart, dayWidth]
+  );
+
+  const shiftGanttWindow = (dayDelta: number) => {
+    setGanttWindowStart((prev) => {
+      const next = new Date(prev);
+      next.setDate(next.getDate() + dayDelta);
+      return next;
+    });
+  };
+
+  const jumpGanttToToday = () => {
+    setGanttWindowStart(defaultGanttWindowStart(todayDate));
+    requestAnimationFrame(() => scrollGanttToDate(todayStr));
+  };
+
+  useEffect(() => {
+    if (subView === 'gantt_timeline') {
+      requestAnimationFrame(() => scrollGanttToDate(todayStr, false));
+    }
+  }, [subView, ganttWindowStart, dayWidth, scrollGanttToDate, todayStr]);
+
+  // Timeline window for Gantt — user can pan with prev/next controls
   const { timelineStartDate, dayList, weekHeaders } = useMemo(() => {
-    const start = new Date(todayDate);
-    start.setDate(start.getDate() - 10); // 21 Oct 2026
+    const start = new Date(ganttWindowStart);
 
     const days: {
       date: Date;
@@ -77,12 +238,12 @@ export function ClientTimelineListView({
 
     const weeks: { weekLabel: string; spanDays: number; startIdx: number }[] = [];
 
-    const dayNames = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So'];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     let currentWeekDays = 0;
     let currentWeekStart = 0;
     let currentWeekTitle = '';
 
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < GANTT_VISIBLE_DAYS; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
 
@@ -110,7 +271,7 @@ export function ClientTimelineListView({
         }
         currentWeekStart = i;
         currentWeekDays = 1;
-        currentWeekTitle = d.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+        currentWeekTitle = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
       } else {
         currentWeekDays++;
       }
@@ -129,7 +290,7 @@ export function ClientTimelineListView({
       dayList: days,
       weekHeaders: weeks,
     };
-  }, [todayDate, todayStr]);
+  }, [ganttWindowStart]);
 
   const timelineStartStr = toISODateString(timelineStartDate);
   const totalTimelineWidth = dayList.length * dayWidth;
@@ -202,10 +363,18 @@ export function ClientTimelineListView({
     return { totalDays, elapsedDays, percentage };
   };
 
+  const ganttRangeLabel = dayList.length
+    ? `${formatShortDate(dayList[0].dateStr)} – ${formatShortDate(dayList[dayList.length - 1].dateStr)}`
+    : '';
+
   return (
-    <div className="flex-1 overflow-y-auto bg-zinc-950 p-4 lg:p-8 flex flex-col space-y-6 max-w-7xl mx-auto w-full">
+    <div
+      className={`flex-1 min-w-0 flex flex-col space-y-6 p-4 lg:p-6 min-h-0 bg-zinc-950 ${
+        subView === 'gantt_timeline' ? 'overflow-hidden' : 'overflow-y-auto'
+      }`}
+    >
       {/* 1. TOP HEADER & URGENT BROADCAST NOTICE */}
-      {expiredCount > 0 && (
+      {!isClientView && expiredCount > 0 && (
         <div className="bg-gradient-to-r from-rose-950/90 via-rose-900/80 to-zinc-900 border-2 border-rose-500 rounded-3xl p-5 shadow-2xl shadow-rose-950/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-rose-600/40 animate-pulse">
@@ -214,17 +383,17 @@ export function ClientTimelineListView({
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500 text-white">
-                  PILNY ALERT EMISYJNY
+                  URGENT ON-AIR ALERT
                 </span>
                 <span className="text-xs text-rose-300 font-mono font-bold">
-                  {expiredCount} {expiredCount === 1 ? 'spot do zdjęcia' : 'spoty do zdjęcia'}
+                  {expiredCount} {expiredCount === 1 ? 'spot to pull' : 'spots to pull'}
                 </span>
               </div>
               <h2 className="text-base font-bold text-white mt-0.5">
-                Spoty z minionym terminem wciąż w ramówce stacji!
+                Spots past deadline are still in the schedule!
               </h2>
               <p className="text-xs text-rose-200/90 mt-0.5">
-                Koncert Cliona Hagan odbył się wczoraj (30 Października). Zdejmij ten materiał przed najbliższą środową emisją na antenie Faith World TV.
+                Review expired spots and pull them before the next broadcast on Faith World TV.
               </p>
             </div>
           </div>
@@ -236,13 +405,14 @@ export function ClientTimelineListView({
             }}
             className="shrink-0 px-4 py-2.5 rounded-xl bg-white hover:bg-rose-50 text-rose-950 text-xs font-extrabold shadow-lg transition-transform active:scale-95 flex items-center space-x-2"
           >
-            <span>Przejdź do spotu & Zdejmij</span>
+            <span>Go to spot & Pull</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* 2. STATS PILLS & VIEW MODE SWITCHER */}
+      {!isClientView && (
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-zinc-900/70 border border-zinc-800 rounded-2xl p-3.5 backdrop-blur-md">
         {/* Left: Quick Status Filter Pills */}
         <div className="flex items-center space-x-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
@@ -254,7 +424,7 @@ export function ClientTimelineListView({
                 : 'text-zinc-400 hover:text-white bg-zinc-800/60'
             }`}
           >
-            <span>Wszystkie spoty ({ads.length})</span>
+            <span>All spots ({ads.length})</span>
           </button>
 
           <button
@@ -266,7 +436,7 @@ export function ClientTimelineListView({
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Do zdjęcia z anteny ({expiredCount + expiringCount})</span>
+            <span>Pull from air ({expiredCount + expiringCount})</span>
             {expiredCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
             )}
@@ -281,54 +451,24 @@ export function ClientTimelineListView({
             }`}
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Bezpieczne / Aktywne ({activeCount})</span>
+            <span>Safe / Active ({activeCount})</span>
           </button>
         </div>
 
-        {/* Right: Search & View Toggle */}
-        <div className="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-end">
-          {/* Search */}
-          <div className="relative">
+        <div className="flex items-center w-full md:w-auto md:ml-auto justify-end">
+          <div className="relative w-full md:w-auto">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Szukaj reklamy lub artysty..."
-              className="pl-8 pr-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-44 md:w-56"
+              placeholder="Search ads or artist..."
+              className="w-full md:w-56 pl-8 pr-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
             />
-          </div>
-
-          {/* Toggle View Style */}
-          <div className="flex items-center space-x-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-            <button
-              onClick={() => setSubView('cards_timeline')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                subView === 'cards_timeline'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-              title="Czytelne karty z niezbędnymi informacjami i mini-osią czasu"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Karty & Terminarz</span>
-            </button>
-
-            <button
-              onClick={() => setSubView('gantt_timeline')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                subView === 'gantt_timeline'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-              title="Pełna zsynchronizowana oś czasu w układzie poziomym"
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Pełna Oś Czasu (Gantt)</span>
-            </button>
           </div>
         </div>
       </div>
+      )}
 
       {/* 3. MAIN CONTENT: MODE 1 - CARDS WITH INTEGRATED TIMELINE (ULTRA READABLE FOR CLIENT) */}
       {subView === 'cards_timeline' && (
@@ -370,15 +510,18 @@ export function ClientTimelineListView({
 
                   <div className="flex items-center space-x-3">
                     <span className="text-xs px-3 py-1 rounded-full bg-zinc-800/80 text-zinc-300 font-semibold border border-zinc-700/60">
-                      {showAds.length} {showAds.length === 1 ? 'aktywny spot' : 'aktywne spoty'}
+                      {showAds.length} {showAds.length === 1 ? 'active spot' : 'active spots'}
                     </span>
-                    <button
-                      onClick={onOpenNewAd}
-                      className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Dodaj spot</span>
-                    </button>
+                    {onOpenNewAd && (
+                      <button
+                        type="button"
+                        onClick={onOpenNewAd}
+                        className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add spot</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -394,10 +537,10 @@ export function ClientTimelineListView({
                           <div className="flex items-center space-x-2 text-xs font-bold text-zinc-300">
                             <Layers className="w-4 h-4 text-indigo-400" />
                             <span className="uppercase tracking-wider">
-                              Przerwa {breakNum} (Commercial Break {breakNum})
+                              Break {breakNum} (Commercial Break {breakNum})
                             </span>
                             <span className="text-[11px] text-zinc-500 font-normal font-mono">
-                              &bull; {breakAds.length} {breakAds.length === 1 ? 'spot' : 'spoty'} w bloku
+                              &bull; {breakAds.length} {breakAds.length === 1 ? 'spot' : 'spots'} in break
                             </span>
                           </div>
                         </div>
@@ -405,13 +548,19 @@ export function ClientTimelineListView({
                         {/* Ad Cards or Empty Break State */}
                         {breakAds.length === 0 ? (
                           <div className="bg-zinc-950/40 border border-dashed border-zinc-800/80 rounded-2xl p-5 text-center text-xs text-zinc-500">
-                            Brak zaplanowanych spotów w tej przerwie reklamowej.{' '}
-                            <button
-                              onClick={onOpenNewAd}
-                              className="text-indigo-400 hover:text-indigo-300 underline font-semibold ml-1"
-                            >
-                              + Zaplanuj nowy spot
-                            </button>
+                            No spots scheduled in this commercial break.
+                            {onOpenNewAd && (
+                              <>
+                                {' '}
+                                <button
+                                  type="button"
+                                  onClick={onOpenNewAd}
+                                  className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                                >
+                                  + Schedule new spot
+                                </button>
+                              </>
+                            )}
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 gap-4">
@@ -469,7 +618,7 @@ export function ClientTimelineListView({
                                     <div className="flex-1 min-w-0 space-y-1.5 w-full">
                                       <div className="flex items-center space-x-2">
                                         <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700/60">
-                                          Przerwa {ad.breakNumber} &bull; Slot #{ad.slotIndex}
+                                          Break {ad.breakNumber} &bull; Slot #{ad.slotIndex}
                                         </span>
                                         <span className="text-xs text-zinc-400 font-medium">
                                           {ad.category}
@@ -502,7 +651,7 @@ export function ClientTimelineListView({
                                         <div className="text-[11px] text-zinc-400 bg-zinc-950/60 px-3 py-1.5 rounded-xl border border-zinc-800/80 inline-flex items-center space-x-1.5 mt-1">
                                           <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                                           <span>
-                                            <b>Instrukcja emisyjna:</b> {ad.replacementAction}
+                                            <b>Traffic instruction:</b> {ad.replacementAction}
                                           </span>
                                         </div>
                                       )}
@@ -513,7 +662,7 @@ export function ClientTimelineListView({
                                       <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
                                         <span>Start: {formatShortDate(ad.startDate)}</span>
                                         <span className="font-bold text-zinc-200">
-                                          Koniec: {formatShortDate(ad.endDate)}
+                                          End: {formatShortDate(ad.endDate)}
                                         </span>
                                       </div>
 
@@ -535,7 +684,7 @@ export function ClientTimelineListView({
                                       <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
                                         <span className="text-amber-400 font-bold flex items-center space-x-1">
                                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />
-                                          <span>Dziś: 31 Paź</span>
+                                          <span>Today: 31 Oct</span>
                                         </span>
                                         <span>{progress.percentage}% okresu emisji</span>
                                       </div>
@@ -558,7 +707,7 @@ export function ClientTimelineListView({
                                         {isExpired ? (
                                           <>
                                             <AlertTriangle className="w-3.5 h-3.5 text-white fill-current" />
-                                            <span>ZDEJMIJ Z ANTENY!</span>
+                                            <span>PULL FROM AIR!</span>
                                           </>
                                         ) : (
                                           <span>{daysInfo.text}</span>
@@ -574,22 +723,23 @@ export function ClientTimelineListView({
                                       </span>
 
                                       {/* One-click Action to Take off */}
-                                      {!isTakenOff ? (
+                                      {!isTakenOff && onTakeOffAd ? (
                                         <button
+                                          type="button"
                                           onClick={() => onTakeOffAd(ad.id)}
                                           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center space-x-1.5 shadow ${
                                             isExpired
                                               ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/40'
                                               : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700'
                                           }`}
-                                          title="Zdejmij natychmiast z logu emisyjnego"
+                                          title="Pull immediately from playout log"
                                         >
                                           <ShieldAlert className="w-3.5 h-3.5" />
-                                          <span>Zdejmij z anteny</span>
+                                          <span>Pull from air</span>
                                         </button>
                                       ) : (
                                         <span className="text-[11px] text-zinc-500 font-semibold italic">
-                                          ✓ Zdjęto z ramówki
+                                          ✓ Pulled from schedule
                                         </span>
                                       )}
                                     </div>
@@ -611,45 +761,79 @@ export function ClientTimelineListView({
 
       {/* 4. MAIN CONTENT: MODE 2 - HORIZONTAL GANTT STUDIO (CLEAN, NO DENSE PRISON BARS) */}
       {subView === 'gantt_timeline' && (
-        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col min-h-[580px]">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col flex-1 min-h-0">
           {/* Gantt Top Controls */}
-          <div className="p-4 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between text-xs">
-            <div className="flex items-center space-x-3">
-              <span className="font-bold text-zinc-300 uppercase tracking-wider">
-                Oś Czasu Emisji (Gantt)
+          <div className="p-4 bg-zinc-900 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-zinc-100 uppercase tracking-wider text-sm">
+                Broadcast timeline (Gantt)
               </span>
-              <span className="text-zinc-500 font-mono">
-                Zakres: 21 Października &rarr; 24 Listopada 2026
-              </span>
+              <span className="text-zinc-400 font-mono text-sm">Range: {ganttRangeLabel}</span>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center rounded-xl border border-zinc-700 bg-zinc-950 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => shiftGanttWindow(-14)}
+                  className="px-3 py-2 text-zinc-200 hover:bg-zinc-800 font-semibold flex items-center gap-1"
+                  title="Back 2 weeks"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">−2 wk</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => shiftGanttWindow(-7)}
+                  className="px-2 py-2 text-zinc-400 hover:bg-zinc-800 border-x border-zinc-800"
+                  title="Back 1 week"
+                >
+                  −7 days
+                </button>
+                <button
+                  type="button"
+                  onClick={jumpGanttToToday}
+                  className="px-3 py-2 text-amber-200 hover:bg-amber-950/50 font-bold"
+                  title="Centre on today"
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => shiftGanttWindow(7)}
+                  className="px-2 py-2 text-zinc-400 hover:bg-zinc-800 border-x border-zinc-800"
+                  title="Forward 1 week"
+                >
+                  +7 days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => shiftGanttWindow(14)}
+                  className="px-3 py-2 text-zinc-200 hover:bg-zinc-800 font-semibold flex items-center gap-1"
+                  title="Forward 2 weeks"
+                >
+                  <span className="hidden sm:inline">+2 wk</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
               <button
-                onClick={() => {
-                  if (scrollContainerRef.current) {
-                    scrollContainerRef.current.scrollTo({
-                      left: Math.max(0, todayLeftPixel - 200),
-                      behavior: 'smooth',
-                    });
-                  }
-                }}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold transition-all shadow-sm"
+                type="button"
+                onClick={() => scrollGanttToDate(todayStr)}
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-amber-500/25 hover:bg-amber-500/35 border border-amber-500/50 text-amber-100 font-bold transition-all"
               >
-                <Crosshair className="w-3.5 h-3.5 text-amber-400" />
-                <span>Skocz do DZIŚ (31 Paź)</span>
+                <Crosshair className="w-4 h-4 text-amber-300" />
+                <span>Jump to today (31 Oct)</span>
               </button>
 
-              <div className="flex items-center space-x-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-                <span className="text-[10px] text-zinc-500 font-bold px-1.5">SKALA:</span>
-                {[
-                  { label: 'Kompaktowa', width: 56 },
-                  { label: 'Standard (72px)', width: 72 },
-                  { label: 'Szeroka (96px)', width: 96 },
-                ].map((z) => (
+              <div className="flex flex-wrap items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 max-w-full">
+                <span className="text-[10px] text-zinc-500 font-bold px-1.5 shrink-0">Day grid:</span>
+                {GANTT_DAY_SCALES.map((z) => (
                   <button
                     key={z.width}
+                    type="button"
                     onClick={() => setDayWidth(z.width)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    className={`px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
                       dayWidth === z.width
                         ? 'bg-indigo-600 text-white shadow'
                         : 'text-zinc-400 hover:text-zinc-200'
@@ -665,44 +849,55 @@ export function ClientTimelineListView({
           {/* Scrollable Canvas */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-x-auto overflow-y-auto relative flex flex-col"
+            className="flex-1 min-h-0 overflow-x-auto overflow-y-auto relative flex flex-col overscroll-x-contain touch-pan-x"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {/* Header Ruler */}
             <div
-              style={{ width: `${360 + totalTimelineWidth}px` }}
+              style={{ width: GANTT_LABEL_COL_PX + totalTimelineWidth }}
               className="sticky top-0 z-30 flex bg-zinc-900 border-b border-zinc-800 shrink-0 select-none shadow-md"
             >
               {/* Left sticky title */}
-              <div className="w-[360px] shrink-0 p-3.5 border-r border-zinc-800 bg-zinc-900 flex items-center justify-between sticky left-0 z-40 shadow-xl">
+              <div
+                style={labelColumnStyle()}
+                className="box-border shrink-0 p-3.5 border-r border-zinc-800 bg-zinc-900 flex items-center justify-between sticky left-0 z-40 shadow-xl"
+              >
                 <span className="font-bold text-xs uppercase tracking-wider text-zinc-300">
-                  Program & Reklama
+                  Show & ad
                 </span>
                 <span className="text-[10px] font-mono text-zinc-500 uppercase font-semibold">
-                  Slot / Czas
+                  Slot / time
                 </span>
               </div>
 
               {/* Day numbers */}
-              <div style={{ width: `${totalTimelineWidth}px` }} className="flex h-12 relative shrink-0">
+              <div
+                style={timelineTrackStyle(totalTimelineWidth)}
+                className="flex h-10 relative shrink-0"
+              >
                 {dayList.map((day, idx) => (
                   <div
                     key={idx}
-                    style={{ width: `${dayWidth}px` }}
-                    className={`shrink-0 border-r border-zinc-800/60 flex flex-col items-center justify-center transition-colors relative ${
+                    style={dayColumnStyle(dayWidth)}
+                    className={`${DAY_COLUMN_BORDER} flex flex-col items-center justify-center relative ${
                       day.isToday
-                        ? 'bg-amber-400/20 text-amber-200 font-black'
+                        ? 'bg-amber-400/15 text-amber-100'
                         : day.isWeekend
-                        ? 'bg-zinc-950/60 text-zinc-500'
-                        : 'text-zinc-300'
+                        ? 'bg-zinc-950/70 text-zinc-500'
+                        : 'text-zinc-400'
                     }`}
                   >
-                    <span className="text-[10px] font-semibold uppercase opacity-80">
-                      {day.dayOfWeekName}
-                    </span>
+                    {dayWidth >= 56 && (
+                      <span className="text-[9px] font-semibold uppercase leading-none opacity-70">
+                        {day.dayOfWeekName}
+                      </span>
+                    )}
                     <span
-                      className={`text-xs font-mono font-bold leading-tight ${
+                      className={`text-[11px] font-mono font-bold leading-tight ${
                         day.isToday
-                          ? 'px-1.5 py-0.2 rounded-md bg-amber-400 text-zinc-950 shadow'
+                          ? 'mt-0.5 px-1 py-px rounded bg-amber-400 text-zinc-950'
+                          : dayWidth >= 56
+                          ? 'mt-0.5'
                           : ''
                       }`}
                     >
@@ -718,21 +913,32 @@ export function ClientTimelineListView({
                     className="absolute top-0 bottom-0 w-0.5 bg-amber-400 z-30 shadow-[0_0_12px_rgba(251,191,36,0.9)] pointer-events-none"
                   >
                     <div className="absolute top-0.5 -translate-x-1/2 bg-amber-400 text-zinc-950 text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase shadow">
-                      DZIŚ
+                      TODAY
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Gantt Rows */}
-            <div style={{ width: `${360 + totalTimelineWidth}px` }} className="flex flex-col divide-y divide-zinc-850">
+            {/* Gantt Rows — one shared day grid so columns match the header */}
+            <div
+              style={{ width: GANTT_LABEL_COL_PX + totalTimelineWidth }}
+              className="flex flex-col relative"
+            >
+              <div
+                className="absolute top-0 bottom-0 z-0 pointer-events-none flex"
+                style={{ left: GANTT_LABEL_COL_PX, ...timelineTrackStyle(totalTimelineWidth) }}
+              >
+                <GanttDayGrid dayList={dayList} dayWidth={dayWidth} />
+              </div>
               {filteredShows.map((show) => {
                 const showAds = filteredAds.filter((a) => a.showId === show.id);
+                const breakNumbers = Array.from({ length: show.breakCount }, (_, i) => i + 1);
+
                 return (
-                  <div key={show.id} className="flex flex-col">
+                  <div key={show.id} className="flex flex-col border-b-4 border-zinc-800">
                     {/* Show Group Header */}
-                    <div className="sticky left-0 z-20 flex items-center justify-between bg-zinc-900/95 backdrop-blur-md px-4 py-2 border-b border-zinc-800">
+                    <div className="sticky left-0 z-20 flex items-center justify-between bg-zinc-900/95 backdrop-blur-md px-4 py-2 border-b border-zinc-700">
                       <div className="flex items-center space-x-2.5">
                         <span
                           className={`w-3 h-3 rounded-full ${
@@ -750,25 +956,70 @@ export function ClientTimelineListView({
                       </div>
                     </div>
 
-                    {/* Spot rows */}
-                    {showAds.map((ad) => {
+                    {breakNumbers.map((breakNum) => {
+                      const theme = breakTheme(breakNum);
+                      const breakAds = showAds
+                        .filter((a) => a.breakNumber === breakNum)
+                        .sort((a, b) => a.slotIndex - b.slotIndex);
+
+                      return (
+                        <div
+                          key={breakNum}
+                          className={`flex flex-col border-y-2 ${theme.accent}`}
+                        >
+                          <div className="flex border-b border-zinc-800/80 min-h-[2px]">
+                            <div
+                              style={labelColumnStyle()}
+                              className={`box-border shrink-0 sticky left-0 z-[19] px-4 py-2 flex items-center gap-2 border-r border-zinc-800 ${theme.header}`}
+                            >
+                              <Layers className="w-4 h-4 shrink-0 opacity-90" />
+                              <span className="text-sm font-black uppercase tracking-wide">
+                                {theme.label}
+                              </span>
+                              <span className="text-xs font-mono opacity-80">
+                                {breakAds.length} spot(s) ·{' '}
+                                {breakAds.reduce((s, a) => s + a.durationSec, 0)}s
+                              </span>
+                            </div>
+                            <div
+                              style={timelineTrackStyle(totalTimelineWidth)}
+                              className="relative shrink-0 h-full min-h-[36px]"
+                            />
+                          </div>
+
+                          {breakAds.length === 0 ? (
+                            <div className="flex h-12 border-b border-zinc-800/80">
+                              <div
+                                style={labelColumnStyle()}
+                                className="box-border shrink-0 sticky left-0 z-10 px-4 flex items-center text-sm text-zinc-500 italic bg-zinc-950 border-r border-zinc-800"
+                              >
+                                Empty commercial break
+                              </div>
+                              <div style={timelineTrackStyle(totalTimelineWidth)} className="relative shrink-0" />
+                            </div>
+                          ) : null}
+
+                          {breakAds.map((ad) => {
                       const barPos = calculateBarPixels(ad.startDate, ad.endDate);
                       const daysInfo = formatDaysRemainingText(ad.endDate);
                       const isExpired = ad.status === 'expired';
                       const isExpiring = ad.status === 'expiring_soon';
                       const isTakenOff = !!ad.takenOffAt;
 
+                      const laneTheme = breakTheme(ad.breakNumber);
+
                       return (
                         <div
                           key={ad.id}
-                          className={`flex border-b border-zinc-850/60 hover:bg-zinc-900/40 transition-colors h-20 relative group/lane ${
+                          className={`flex border-b border-zinc-800/80 hover:bg-black/10 transition-colors h-20 relative group/lane ${
                             isExpired ? 'bg-rose-950/20' : ''
-                          }`}
+                          } ${theme.lane}`}
                         >
                           {/* Left sticky card */}
                           <div
                             onClick={() => onSelectAd(ad)}
-                            className="w-[360px] shrink-0 p-3 border-r border-zinc-800 bg-zinc-950 sticky left-0 z-20 flex items-center justify-between cursor-pointer group-hover/lane:bg-zinc-900 transition-colors shadow-lg"
+                            style={labelColumnStyle()}
+                            className={`box-border shrink-0 p-3 border-r border-zinc-700 bg-zinc-950 sticky left-0 z-20 flex items-center justify-between cursor-pointer group-hover/lane:bg-zinc-900 transition-colors shadow-lg border-l-4 ${laneTheme.accent}`}
                           >
                             <div className="flex items-center space-x-3 overflow-hidden min-w-0 pr-2">
                               {/* Thumbnail */}
@@ -785,8 +1036,10 @@ export function ClientTimelineListView({
                               </div>
 
                               <div className="flex flex-col truncate min-w-0">
-                                <span className="text-[10px] font-mono text-indigo-400 font-bold">
-                                  Przerwa {ad.breakNumber} &bull; Slot #{ad.slotIndex}
+                                <span
+                                  className={`text-[10px] font-mono font-bold ${laneTheme.slotTag}`}
+                                >
+                                  {laneTheme.label} &bull; Slot #{ad.slotIndex}
                                 </span>
                                 <h5 className="text-xs font-bold text-white truncate">
                                   {ad.title}
@@ -804,14 +1057,14 @@ export function ClientTimelineListView({
                                   : daysInfo.badgeClass
                               }`}
                             >
-                              {isExpired ? '🚨 ZDEJMIJ!' : daysInfo.text}
+                              {isExpired ? '🚨 PULL!' : daysInfo.text}
                             </span>
                           </div>
 
                           {/* Right timeline lane */}
                           <div
-                            style={{ width: `${totalTimelineWidth}px` }}
-                            className="relative h-full flex items-center p-2 shrink-0 overflow-hidden"
+                            style={timelineTrackStyle(totalTimelineWidth)}
+                            className="relative z-[1] h-full flex items-center p-2 shrink-0 overflow-hidden"
                           >
                             {/* Today line */}
                             {todayLeftPixel >= 0 && (
@@ -825,14 +1078,14 @@ export function ClientTimelineListView({
                             <div
                               onClick={() => onSelectAd(ad)}
                               style={{ left: `${barPos.left}px`, width: `${barPos.width}px` }}
-                              className={`absolute h-12 rounded-xl px-3 flex items-center justify-between cursor-pointer shadow-lg transition-all duration-200 hover:scale-[1.01] hover:z-20 border select-none ${
+                              className={`absolute z-[5] h-12 rounded-xl px-3 flex items-center justify-between cursor-pointer shadow-lg transition-all duration-200 hover:scale-[1.01] hover:z-20 border-2 select-none ${
                                 isTakenOff
                                   ? 'bg-zinc-900/60 border-zinc-800 text-zinc-500 line-through opacity-60'
                                   : isExpired
                                   ? 'bg-gradient-to-r from-rose-950 via-rose-900 to-rose-950 border-rose-500 text-rose-100 ring-2 ring-rose-500/50 shadow-rose-950/60'
                                   : isExpiring
-                                  ? 'bg-gradient-to-r from-amber-950 via-zinc-900 to-amber-950 border-amber-500 text-amber-100 shadow-amber-950/40'
-                                  : 'bg-zinc-900 border-zinc-700 hover:border-indigo-400 text-zinc-100 shadow-lg'
+                                  ? `bg-gradient-to-r from-amber-950/80 to-zinc-900 border-amber-500 text-amber-100 ${laneTheme.bar}`
+                                  : `${laneTheme.bar} text-zinc-100`
                               }`}
                             >
                               <div className="flex items-center space-x-2 truncate min-w-0">
@@ -857,6 +1110,9 @@ export function ClientTimelineListView({
                               </div>
                             </div>
                           </div>
+                        </div>
+                      );
+                          })}
                         </div>
                       );
                     })}

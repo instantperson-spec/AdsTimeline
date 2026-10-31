@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Film,
   Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay } from '@/lib/date-utils';
@@ -27,6 +28,7 @@ interface BreaksSlotMatrixProps {
   onRemoveBreak: (showId: string, breakNumber: number) => void;
   onDeleteAd: (adId: string) => void;
   onTakeOffAd: (adId: string) => void;
+  onRestoreAd: (adId: string) => void;
 }
 
 export function BreaksSlotMatrix({
@@ -39,6 +41,7 @@ export function BreaksSlotMatrix({
   onRemoveBreak,
   onDeleteAd,
   onTakeOffAd,
+  onRestoreAd,
 }: BreaksSlotMatrixProps) {
   // If 'all', render all shows; if specific show, render that show
   const activeShows = selectedShowId === 'all'
@@ -229,7 +232,20 @@ export function BreaksSlotMatrix({
                                   </span>
 
                                   <div className="flex items-center space-x-2">
-                                    {!isTakenOff && (
+                                    {isTakenOff ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onRestoreAd(ad.id);
+                                        }}
+                                        className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-0.5"
+                                        title="Restore spot on air (undo Pull)"
+                                      >
+                                        <RotateCcw className="w-3 h-3" />
+                                        Restore
+                                      </button>
+                                    ) : (
                                       <button
                                         type="button"
                                         onClick={(e) => {

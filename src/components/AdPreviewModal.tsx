@@ -27,6 +27,7 @@ interface AdPreviewModalProps {
   shows: CommercialShow[];
   onClose: () => void;
   onTakeOffAd?: (adId: string, note?: string) => void;
+  onRestoreAd?: (adId: string) => void;
   onDeleteAd?: (adId: string) => void;
   onEditAd?: (ad: CommercialAd) => void;
   isClientView?: boolean;
@@ -37,6 +38,7 @@ export function AdPreviewModal({
   shows,
   onClose,
   onTakeOffAd,
+  onRestoreAd,
   onDeleteAd,
   onEditAd,
   isClientView = false,
@@ -117,34 +119,50 @@ export function AdPreviewModal({
     >
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-zinc-100 max-h-[90vh]">
         {/* Modal Top Bar */}
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
-              <Film className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2 text-[11px] text-zinc-400">
-                <span className="font-bold text-zinc-200">{show?.title || ad.showTitle}</span>
-                <span>&bull;</span>
-                <span className="text-indigo-400 font-mono font-semibold">
-                  Przerwa {ad.breakNumber} &bull; Slot #{ad.slotIndex}
-                </span>
-                <span>&bull;</span>
-                <span className="font-mono text-zinc-400">{ad.durationSec}s spot</span>
+        <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80 gap-3">
+          <div className="min-w-0">
+            {isClientView ? (
+              <>
+                <h2 id="ad-preview-title" className="text-base font-bold text-white line-clamp-2">
+                  {ad.title}
+                </h2>
+                <p className="text-sm text-zinc-400 mt-1">
+                  On air until {formatDateDisplay(ad.endDate)}
+                </p>
+              </>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold shrink-0">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-2 text-[11px] text-zinc-400 flex-wrap">
+                    <span className="font-bold text-zinc-200">{show?.title || ad.showTitle}</span>
+                    <span>&bull;</span>
+                    <span className="text-indigo-400 font-mono font-semibold">
+                      Break {ad.breakNumber} &bull; Slot #{ad.slotIndex}
+                    </span>
+                    <span>&bull;</span>
+                    <span className="font-mono text-zinc-400">{ad.durationSec}s spot</span>
+                  </div>
+                  <h2 id="ad-preview-title" className="text-sm font-bold text-white truncate max-w-md">
+                    {ad.title}
+                  </h2>
+                </div>
               </div>
-              <h2 id="ad-preview-title" className="text-sm font-bold text-white truncate max-w-md">
-                {ad.title}
-              </h2>
-            </div>
+            )}
           </div>
 
-          <div className="flex items-center space-x-2">
-            <span
-              className={`px-3 py-1 rounded-xl text-xs font-mono font-black border ${daysInfo.badgeClass}`}
-            >
-              {isExpired ? '🚨 TERMIN MINĄŁ!' : daysInfo.text}
-            </span>
+          <div className="flex items-center space-x-2 shrink-0">
+            {!isClientView && (
+              <span
+                className={`px-3 py-1 rounded-xl text-xs font-mono font-black border ${daysInfo.badgeClass}`}
+              >
+                {isExpired ? '🚨 DEADLINE PASSED!' : daysInfo.text}
+              </span>
+            )}
             <button
+              type="button"
               onClick={onClose}
               className="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors"
             >
@@ -155,7 +173,7 @@ export function AdPreviewModal({
 
         {/* Media Preview Container (Video or Frame grab) */}
         <div className="relative bg-black aspect-video w-full flex items-center justify-center overflow-hidden">
-          {activeMediaTab === 'video' && ad.videoUrl ? (
+          {(isClientView || activeMediaTab === 'video') && ad.videoUrl ? (
             <div className="relative w-full h-full flex items-center justify-center group/player">
               <video
                 ref={videoRef}
@@ -201,7 +219,7 @@ export function AdPreviewModal({
                     }
                   }}
                   className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-                  title="Od początku"
+                  title="From start"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
@@ -244,110 +262,128 @@ export function AdPreviewModal({
           )}
         </div>
 
-        {/* Media Switcher Tab */}
-        <div className="bg-zinc-950 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setActiveMediaTab('video')}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                activeMediaTab === 'video'
-                  ? 'bg-zinc-800 text-white border border-zinc-700'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Film className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Podgląd Wideo (HD H.264)</span>
-            </button>
+        {!isClientView && (
+          <div className="bg-zinc-950 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setActiveMediaTab('video')}
+                className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  activeMediaTab === 'video'
+                    ? 'bg-zinc-800 text-white border border-zinc-700'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Film className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Video preview (HD H.264)</span>
+              </button>
 
-            <button
-              onClick={() => setActiveMediaTab('frame')}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                activeMediaTab === 'frame'
-                  ? 'bg-zinc-800 text-white border border-zinc-700'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Tv className="w-3.5 h-3.5 text-amber-400" />
-              <span>Klatka Wideo (Frame Grab)</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveMediaTab('frame')}
+                className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  activeMediaTab === 'frame'
+                    ? 'bg-zinc-800 text-white border border-zinc-700'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Tv className="w-3.5 h-3.5 text-amber-400" />
+                <span>Frame grab</span>
+              </button>
+            </div>
+
+            <span className="text-[11px] text-zinc-500 font-mono">
+              Format: 1080p 25fps Stereo
+            </span>
           </div>
-
-          <span className="text-[11px] text-zinc-500 font-mono">
-            Format: 1080p 25fps Stereo
-          </span>
-        </div>
+        )}
 
         {/* Commercial Metadata & Flight Status */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className={`p-5 overflow-y-auto space-y-4 ${isClientView ? 'pt-3 pb-4' : ''}`}>
+          {isClientView ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-bold"
+              >
+                Close
+              </button>
+            </div>
+          ) : null}
+
           {/* Status Box */}
-          {isExpired && (
+          {!isClientView && isExpired && (
             <div className="p-4 rounded-2xl bg-rose-950/70 border border-rose-500 flex items-start space-x-3 text-rose-200 text-xs shadow-lg shadow-rose-950/40">
               <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
               <div>
                 <h4 className="font-extrabold text-white text-sm">
-                  Spot wymaga zdjęcia z anteny: Termin wydarzenia minął!
+                  Spot must be pulled: event deadline has passed!
                 </h4>
                 <p className="mt-0.5 text-rose-200/90 leading-relaxed">
-                  Data końcowa minęła {formatDateDisplay(ad.endDate)}. Spot zostanie wycofany z ramówki przed kolejną emisją programu.
+                  End date was {formatDateDisplay(ad.endDate)}. This spot will be removed from the schedule before the next broadcast.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Grid Meta */}
+          {!isClientView && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Reklamodawca
+                Advertiser
               </span>
               <span className="font-bold text-zinc-200">{ad.advertiser}</span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Kategoria
+                Category
               </span>
               <span className="font-bold text-zinc-200">{ad.category}</span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">
-                Start emisji
+                Flight start
               </span>
               <span className="font-bold text-zinc-200">{formatDateDisplay(ad.startDate)}</span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800">
               <span className="text-[10px] text-amber-400 uppercase font-bold block mb-1">
-                Zdjąć do (Koniec)
+                Pull by (end)
               </span>
               <span className="font-extrabold text-amber-300">{formatDateDisplay(ad.endDate)}</span>
             </div>
           </div>
+          )}
 
-          {/* Replacement Action box */}
+          {!isClientView && (
           <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
             <div className="flex items-center space-x-2 text-xs font-bold text-amber-400">
               <ShieldAlert className="w-4 h-4" />
-              <span>Instrukcja zastąpienia materiału po wygaśnięciu:</span>
+              <span>Replacement instruction after expiry:</span>
             </div>
             <p className="text-xs text-zinc-200 leading-relaxed font-medium">
               {ad.replacementAction}
             </p>
             {ad.eventDate && (
               <p className="text-xs text-zinc-400">
-                Szczegóły wydarzenia: <b className="text-zinc-200">{ad.eventDate}</b>
+                Event details: <b className="text-zinc-200">{ad.eventDate}</b>
               </p>
             )}
           </div>
+          )}
 
           {/* Modal Footer */}
+          {!isClientView && (
           <div className="pt-3 flex items-center justify-between border-t border-zinc-800">
             {!isClientView && onDeleteAd ? (
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm(`Usunąć reklamę "${ad.title}" z bazy danych?`)) {
+                  if (confirm(`Delete ad "${ad.title}" from the database?`)) {
                     onDeleteAd(ad.id);
                     onClose();
                   }
@@ -355,7 +391,7 @@ export function AdPreviewModal({
                 className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 px-3 py-2 rounded-xl hover:bg-rose-950/40 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Usuń z bazy</span>
+                <span>Delete from database</span>
               </button>
             ) : (
               <div />
@@ -372,7 +408,20 @@ export function AdPreviewModal({
                   className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Edytuj spot</span>
+                  <span>Edit spot</span>
+                </button>
+              )}
+
+              {!isClientView && onRestoreAd && isTakenOff && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRestoreAd(ad.id);
+                  }}
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Restore on air</span>
                 </button>
               )}
 
@@ -386,7 +435,7 @@ export function AdPreviewModal({
                   className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all active:scale-95"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Zdejmij z anteny</span>
+                  <span>Pull from air</span>
                 </button>
               )}
 
@@ -395,10 +444,11 @@ export function AdPreviewModal({
                 onClick={onClose}
                 className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors shadow"
               >
-                Zamknij podgląd
+                Close preview
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
     </dialog>

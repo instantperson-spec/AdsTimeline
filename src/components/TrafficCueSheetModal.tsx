@@ -49,16 +49,16 @@ export function TrafficCueSheetModal({
 
   const handleExportCSV = () => {
     const headers = [
-      'Program',
-      'Blok',
+      'Programme',
+      'Break',
       'Slot',
-      'Tytuł Reklamy',
-      'Reklamodawca',
-      'Długość (s)',
-      'Data Od',
-      'Data Do (Zdjąć)',
+      'Ad title',
+      'Advertiser',
+      'Length (s)',
+      'Start date',
+      'Pull-by date',
       'Status',
-      'Dyspozycja Podmiany',
+      'Replacement note',
     ];
 
     const rows = ads.map((a) => {
@@ -72,7 +72,7 @@ export function TrafficCueSheetModal({
         a.durationSec,
         a.startDate,
         a.endDate,
-        a.takenOffAt ? 'Zdjęta' : a.status === 'expired' ? 'PRZETERMINOWANA' : a.status,
+        a.takenOffAt ? 'Pulled' : a.status === 'expired' ? 'EXPIRED' : a.status,
         `"${(a.replacementAction || '').replace(/"/g, '""')}"`,
       ].join(';');
     });
@@ -96,7 +96,6 @@ export function TrafficCueSheetModal({
       className="backdrop:bg-black/85 backdrop:backdrop-blur-md bg-transparent p-0 m-auto max-w-4xl w-full focus:outline-none overscroll-contain"
     >
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-zinc-100 max-h-[92vh]">
-        {/* Header */}
         <div className="p-4 border-b border-zinc-850 bg-zinc-950/80 flex items-center justify-between no-print">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
@@ -104,10 +103,10 @@ export function TrafficCueSheetModal({
             </div>
             <div>
               <h2 id="cue-sheet-title" className="text-sm font-bold text-white">
-                Oficjalna Rozpiska Emisyjna (Traffic Cue Sheet)
+                Official traffic cue sheet
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Dokument dla reżyserki / MCR z wykazem bloków i terminami ważności spotów
+                MCR / director document — commercial breaks and spot expiry dates
               </p>
             </div>
           </div>
@@ -118,14 +117,14 @@ export function TrafficCueSheetModal({
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-xs text-zinc-200 font-semibold transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Eksport CSV</span>
+              <span>Export CSV</span>
             </button>
             <button
               onClick={handlePrint}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-colors"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Drukuj / PDF</span>
+              <span>Print / PDF</span>
             </button>
             <button
               onClick={onClose}
@@ -136,28 +135,22 @@ export function TrafficCueSheetModal({
           </div>
         </div>
 
-        {/* Printable Document Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs bg-zinc-950/50">
-          {/* Studio Document Letterhead */}
           <div className="pb-4 border-b border-zinc-800 flex items-center justify-between">
             <div>
               <h1 className="text-base font-black uppercase tracking-wider text-white">
                 Instant Productions &bull; Broadcast Traffic Control
               </h1>
-              <p className="text-zinc-400 text-xs">
-                Rozpiska emisyjna bloków komercyjnych (Commercial Traffic Sheet)
-              </p>
+              <p className="text-zinc-400 text-xs">Commercial break traffic sheet</p>
             </div>
             <div className="text-right font-mono text-[11px] text-zinc-400">
-              <div>Wygenerowano: 31 Października 2026, 23:15 GMT</div>
-              <div className="text-amber-400 font-bold">Weryfikacja: MCR Status Validated</div>
+              <div>Generated: 31 October 2026, 23:15 GMT</div>
+              <div className="text-amber-400 font-bold">Verification: MCR status validated</div>
             </div>
           </div>
 
-          {/* Show-by-show Breakdown */}
           {activeShows.map((show) => {
             const showAds = ads.filter((a) => a.showId === show.id);
-            const breakNumbers = Array.from({ length: show.breakCount }, (_, i) => i + 1);
 
             return (
               <div key={show.id} className="space-y-3">
@@ -176,21 +169,21 @@ export function TrafficCueSheetModal({
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-zinc-900/80 border-b border-zinc-800 text-[10px] uppercase font-bold text-zinc-400">
-                        <th className="p-2.5">Blok / Slot</th>
-                        <th className="p-2.5">Tytuł spotu</th>
-                        <th className="p-2.5">Reklamodawca</th>
-                        <th className="p-2.5">Czas</th>
-                        <th className="p-2.5">Okres emisji</th>
-                        <th className="p-2.5">Termin zdjęcia</th>
+                        <th className="p-2.5">Break / slot</th>
+                        <th className="p-2.5">Spot title</th>
+                        <th className="p-2.5">Advertiser</th>
+                        <th className="p-2.5">Duration</th>
+                        <th className="p-2.5">Flight dates</th>
+                        <th className="p-2.5">Pull by</th>
                         <th className="p-2.5">Status</th>
-                        <th className="p-2.5">Dyspozycja podmiany</th>
+                        <th className="p-2.5">Replacement</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-850/60 font-medium">
                       {showAds.length === 0 ? (
                         <tr>
                           <td colSpan={8} className="p-4 text-center text-zinc-500">
-                            Brak zaplanowanych spotów w tej audycji.
+                            No spots scheduled for this programme.
                           </td>
                         </tr>
                       ) : (
@@ -221,15 +214,15 @@ export function TrafficCueSheetModal({
                               <td className="p-2.5 whitespace-nowrap">
                                 {ad.takenOffAt ? (
                                   <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px]">
-                                    Zdjęta
+                                    Pulled
                                   </span>
                                 ) : isExpired ? (
                                   <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold text-[10px]">
-                                    PRZETERMINOWANA!
+                                    EXPIRED!
                                   </span>
                                 ) : (
                                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px]">
-                                    Aktywna
+                                    Active
                                   </span>
                                 )}
                               </td>
@@ -251,4 +244,3 @@ export function TrafficCueSheetModal({
     </dialog>
   );
 }
-

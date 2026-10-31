@@ -53,7 +53,7 @@ export function formatDaysRemainingText(
   if (days < 0) {
     const absDays = Math.abs(days);
     return {
-      text: absDays === 1 ? 'Wygasła (wczoraj!)' : `Wygasła (${absDays} dni temu!)`,
+      text: absDays === 1 ? 'Expired (yesterday!)' : `Expired (${absDays} days ago!)`,
       badgeClass:
         'bg-rose-500/20 text-rose-300 border-rose-500/40 ring-1 ring-rose-500/30 animate-pulse',
       isUrgent: true,
@@ -63,7 +63,7 @@ export function formatDaysRemainingText(
 
   if (days === 0) {
     return {
-      text: 'WYGASA DZIŚ!',
+      text: 'EXPIRES TODAY!',
       badgeClass:
         'bg-rose-600 text-white font-bold border-rose-400 ring-2 ring-rose-500 animate-bounce',
       isUrgent: true,
@@ -73,7 +73,7 @@ export function formatDaysRemainingText(
 
   if (days === 1) {
     return {
-      text: 'Wygasa jutro!',
+      text: 'Expires tomorrow!',
       badgeClass:
         'bg-amber-500/25 text-amber-300 border-amber-500/40 font-bold ring-1 ring-amber-500/30',
       isUrgent: true,
@@ -83,7 +83,7 @@ export function formatDaysRemainingText(
 
   if (days <= 5) {
     return {
-      text: `Wygasa za ${days} dni`,
+      text: `Expires in ${days} days`,
       badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-bold',
       isUrgent: true,
       isExpired: false,
@@ -91,7 +91,7 @@ export function formatDaysRemainingText(
   }
 
   return {
-    text: `Aktywna: jeszcze ${days} dni`,
+    text: `On air: ${days} days left`,
     badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-bold',
     isUrgent: false,
     isExpired: false,
@@ -101,7 +101,7 @@ export function formatDaysRemainingText(
 export function formatDateDisplay(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('pl-PL', {
+  return date.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -113,7 +113,8 @@ export function formatShortDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   const d = String(date.getDate()).padStart(2, '0');
   const m = String(date.getMonth() + 1).padStart(2, '0');
-  return `${d}/${m}`;
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
 }
 
 export function getTodayString(): string {

@@ -17,31 +17,31 @@ export interface CommercialAd {
   id: string;
   showId: string;
   showTitle?: string;
-  breakNumber: number; // 1, 2, 3... (np. Break 1 w Ireland West Music TV)
-  slotIndex: number;   // 1, 2, 3... (pozycja w bloku)
-  title: string;       // np. "Live Concert Tour: Daniel O'Donnell 2026"
-  advertiser: string;  // np. "Mayo Arts Centre & Promoters"
+  breakNumber: number; // 1, 2, 3… (commercial break index)
+  slotIndex: number;   // 1, 2, 3… (position within the break)
+  title: string;
+  advertiser: string;
   category: AdCategory;
-  durationSec: number; // np. 20s, 30s
+  durationSec: number; // e.g. 20s, 30s
   startDate: string;   // 'YYYY-MM-DD'
-  endDate: string;     // 'YYYY-MM-DD' — kluczowa data zdjęcia z anteny!
-  frameGrabUrl: string;// Klatka z wideo / plakat
-  videoUrl?: string;   // Opcjonalne wideo 20-30s H.264 do podglądu
-  isTimeSensitive: boolean; // czy ma sztywną datę koncertu/tournee
-  eventDate?: string;  // np. "15 Listopada 2026 - Glencarn Hotel"
-  replacementAction: string; // np. "Zastąpić zwiastunem stacji IWMTV 30s"
+  endDate: string;     // 'YYYY-MM-DD' — pull-by date
+  frameGrabUrl: string;
+  videoUrl?: string;   // optional 20–30s H.264 preview
+  isTimeSensitive: boolean;
+  eventDate?: string;
+  replacementAction: string;
   notes?: string;
   status: AdStatus;
-  takenOffAt?: string; // data kiedy faktycznie zdjęto z anteny
-  replacementAdTitle?: string; // czym zastąpiono
+  takenOffAt?: string;
+  replacementAdTitle?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CommercialShow {
   id: string;
-  title: string;              // np. "Show 1: Ireland West Music TV"
-  code: string;               // np. "IWMTV"
+  title: string;
+  code: string;
   channel: string;            // e.g. "Faith World TV"
   broadcastSchedule: string;  // e.g. "Wednesdays 22:00 GMT — Faith World TV"
   breakCount: number;         // np. 3 przerwy reklamowe
@@ -50,5 +50,6 @@ export interface CommercialShow {
   createdAt: string;
 }
 
-export type TimelineViewMode = 'client' | 'timeline' | 'matrix' | 'urgent_radar';
+/** Main admin navigation (left sidebar). */
+export type AdminNavView = 'cards' | 'gantt' | 'edit';
 

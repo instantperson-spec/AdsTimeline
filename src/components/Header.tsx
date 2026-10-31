@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Tv,
   AlertTriangle,
@@ -8,24 +8,27 @@ import {
   FileSpreadsheet,
   TvMinimalPlay,
   Trash2,
+  Link2,
 } from 'lucide-react';
-import { CommercialShow } from '@/types/timeline';
+import { AdminNavView, CommercialShow } from '@/types/timeline';
+import { ClientLinkModal } from '@/components/ClientLinkModal';
 
 interface HeaderProps {
   shows: CommercialShow[];
   selectedShowId: string;
+  adminView?: AdminNavView;
   onSelectShow: (showId: string) => void;
   onOpenNewAd: () => void;
   onOpenNewShow: () => void;
   onOpenCueSheet: () => void;
   expiredCount: number;
-  expiringSoonCount: number;
   onDeleteShow?: (showId: string) => void;
 }
 
 export function Header({
   shows,
   selectedShowId,
+  adminView = 'cards',
   onSelectShow,
   onOpenNewAd,
   onOpenNewShow,
@@ -33,123 +36,160 @@ export function Header({
   expiredCount,
   onDeleteShow,
 }: HeaderProps) {
-  return (
-    <header className="border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40 select-none">
-      <div className="px-4 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Left: Branding & Simple Show Switcher */}
-        <div className="flex items-center space-x-4 overflow-hidden">
-          <div className="flex items-center space-x-2.5 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold">
-              <Tv className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block leading-none">
-                Instant Productions
-              </span>
-              <h1 className="text-sm font-bold text-white leading-tight">
-                Harmonogram Emisji Reklam
-              </h1>
-            </div>
-          </div>
+  const currentShow = shows.find((s) => s.id === selectedShowId);
+  const [clientLinkOpen, setClientLinkOpen] = useState(false);
 
-          {/* Clean Show Selector */}
-          <div className="hidden sm:flex items-center space-x-1 p-1 bg-zinc-900 border border-zinc-800 rounded-xl">
+  const clientLinkInitialViews =
+    adminView === 'gantt' ? (['timeline'] as const) : (['list'] as const);
+
+  return (
+    <>
+    <header className="border-b border-zinc-700 bg-zinc-900 sticky top-0 z-40 shrink-0">
+      <div className="px-4 lg:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+            <Tv className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-bold text-white leading-tight">Commercial schedule</p>
+            <p className="text-sm text-zinc-300 leading-snug">Faith World TV · Instant Productions</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setClientLinkOpen(true)}
+            title="Set programme and views — generate client link"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 text-sm font-medium text-zinc-100 hover:bg-zinc-700 hover:border-zinc-500"
+          >
+            <Link2 className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>Client link</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenCueSheet}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 text-sm font-medium text-zinc-100 hover:bg-zinc-700"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-indigo-300 shrink-0" />
+            <span className="hidden sm:inline">MCR cue sheet</span>
+            <span className="sm:hidden">MCR</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenNewShow}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 text-sm font-medium text-zinc-100 hover:bg-zinc-700"
+          >
+            <TvMinimalPlay className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Show</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenNewAd}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-bold text-white shadow-sm"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            <span>Ad</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="px-4 lg:px-6 py-3 bg-zinc-950 border-t border-zinc-800">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <label htmlFor="show-filter" className="text-sm font-semibold text-zinc-200 shrink-0">
+            Show:
+          </label>
+
+          <select
+            id="show-filter"
+            value={selectedShowId}
+            onChange={(e) => onSelectShow(e.target.value)}
+            className="sm:hidden w-full px-3 py-2.5 rounded-lg bg-zinc-800 border border-zinc-600 text-sm font-medium text-white"
+          >
+            <option value="all">All programmes ({shows.length})</option>
+            {shows.map((show) => (
+              <option key={show.id} value={show.id}>
+                {show.title}
+              </option>
+            ))}
+          </select>
+
+          <div className="hidden sm:flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => onSelectShow('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 selectedShowId === 'all'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-indigo-600 border-indigo-500 text-white'
+                  : 'bg-zinc-800 border-zinc-600 text-zinc-100 hover:border-zinc-500'
               }`}
             >
-              Wszystkie programy ({shows.length})
+              All ({shows.length})
             </button>
 
             {shows.map((show) => {
               const isSelected = selectedShowId === show.id;
               return (
-                <div key={show.id} className="relative group/pill flex items-center">
+                <div key={show.id} className="flex items-center gap-0.5">
                   <button
+                    type="button"
                     onClick={() => onSelectShow(show.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors max-w-[220px] truncate ${
                       isSelected
-                        ? 'bg-zinc-800 text-white shadow-inner border border-zinc-700'
-                        : 'text-zinc-400 hover:text-white'
+                        ? 'bg-zinc-100 border-zinc-300 text-zinc-900'
+                        : 'bg-zinc-800 border-zinc-600 text-zinc-100 hover:border-zinc-500'
                     }`}
+                    title={show.title}
                   >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        show.color === 'emerald'
-                          ? 'bg-emerald-400'
-                          : show.color === 'amber'
-                          ? 'bg-amber-400'
-                          : 'bg-indigo-400'
-                      }`}
-                    />
-                    <span className="truncate max-w-[150px]">{show.title}</span>
+                    {show.title}
                   </button>
-
-                  {/* Delete show on hover */}
                   {isSelected && onDeleteShow && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Usunąć program "${show.title}" i wszystkie jego reklamy?`)) {
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete show "${show.title}" and all its ads?`)) {
                           onDeleteShow(show.id);
                         }
                       }}
-                      className="opacity-0 group-hover/pill:opacity-100 p-1 hover:text-rose-400 text-zinc-500 transition-opacity ml-0.5"
-                      title="Usuń ten program"
+                      className="p-2 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 border border-transparent hover:border-zinc-700"
+                      title="Delete show"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               );
             })}
           </div>
-        </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center space-x-2.5 shrink-0">
-          {/* Urgent alert counter badge if expired ads exist */}
           {expiredCount > 0 && (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-600/20 border border-rose-500/50 text-rose-300 text-xs font-black animate-pulse">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-              <span>{expiredCount} do zdjęcia!</span>
+            <div className="flex items-center gap-2 text-sm text-rose-200 sm:ml-auto">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>
+                <strong className="text-white">{expiredCount}</strong> spot(s) past pull date
+              </span>
             </div>
           )}
 
-          {/* Cue sheet */}
-          <button
-            onClick={onOpenCueSheet}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
-            title="Metryka emisji MCR dla reżyserki"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden md:inline">Metryka MCR</span>
-          </button>
-
-          {/* Add Show */}
-          <button
-            onClick={onOpenNewShow}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
-            title="Dodaj nowy program TV"
-          >
-            <TvMinimalPlay className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">+ Nowy Program</span>
-          </button>
-
-          {/* Add Ad */}
-          <button
-            onClick={onOpenNewAd}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Dodaj Reklamę</span>
-          </button>
+          {!expiredCount && currentShow && (
+            <p className="text-sm text-zinc-400 sm:ml-auto truncate max-w-md">
+              {currentShow.broadcastSchedule}
+            </p>
+          )}
         </div>
       </div>
     </header>
+
+    <ClientLinkModal
+      isOpen={clientLinkOpen}
+      onClose={() => setClientLinkOpen(false)}
+      shows={shows}
+      initialShowId={selectedShowId}
+      initialViews={[...clientLinkInitialViews]}
+    />
+    </>
   );
 }
