@@ -28,6 +28,16 @@ import {
   diffCalendarDays,
   toISODateString,
 } from '@/lib/date-utils';
+import {
+  headerBroadcastColumnClass,
+  isBroadcastDayOfWeek,
+  showBroadcastColumnClass,
+  unionBroadcastWeekdays,
+} from '@/lib/broadcast-schedule';
+import {
+  GanttShowBroadcastOverlay,
+  type GanttDayColumn,
+} from '@/components/GanttBroadcastDayGrid';
 
 interface TimelineGanttViewProps {
   ads: CommercialAd[];
@@ -61,7 +71,12 @@ export function TimelineGanttView({
     const start = new Date(todayDate);
     start.setDate(start.getDate() - 12); // start on Monday 19 Oct 2026
 
-    const days: { date: Date; dateStr: string; dayOfMonth: number; dayOfWeekName: string; isWeekend: boolean; isToday: boolean }[] = [];
+    const days: (GanttDayColumn & {
+      date: Date;
+      dateStr: string;
+      dayOfMonth: number;
+      dayOfWeekName: string;
+    })[] = [];
     const weeks: { weekLabel: string; spanDays: number }[] = [];
 
     let currentWeekNumber = -1;
@@ -84,6 +99,7 @@ export function TimelineGanttView({
         dateStr: dStr,
         dayOfMonth: d.getDate(),
         dayOfWeekName: dayNames[dayOfWeek],
+        dayOfWeek,
         isWeekend,
         isToday,
       });
@@ -126,6 +142,11 @@ export function TimelineGanttView({
     if (selectedShowId === 'all') return shows;
     return shows.filter((s) => s.id === selectedShowId);
   }, [shows, selectedShowId]);
+
+  const headerBroadcastDays = useMemo(
+    () => new Set(unionBroadcastWeekdays(filteredShows)),
+    [filteredShows]
+  );
 
   const filteredAds = useMemo(() => {
     return ads.filter((ad) => {
@@ -322,8 +343,13 @@ export function TimelineGanttView({
                           : day.isWeekend
                           ? 'bg-zinc-950/60 text-zinc-500'
                           : 'text-zinc-300'
-                      }`}
+                      } ${headerBroadcastColumnClass(headerBroadcastDays.has(day.dayOfWeek))}`}
                     >
+                      {headerBroadcastDays.has(day.dayOfWeek) && (
+                        <span className="absolute top-0.5 right-0.5 text-[7px] font-black text-violet-300 uppercase">
+                          TX
+                        </span>
+                      )}
                       {/* Day of week */}
                       <span className="text-[10px] font-semibold uppercase opacity-80">
                         {day.dayOfWeekName}
@@ -364,7 +390,17 @@ export function TimelineGanttView({
               const breakNumbers = Array.from({ length: show.breakCount }, (_, i) => i + 1);
 
               return (
-                <div key={show.id} className="flex flex-col">
+                <div key={show.id} className="relative flex flex-col">
+                  <div
+                    className="absolute top-0 bottom-0 z-[1] flex pointer-events-none"
+                    style={{ left: 340, width: totalTimelineWidth }}
+                  >
+                    <GanttShowBroadcastOverlay
+                      dayList={dayList}
+                      dayWidth={dayWidth}
+                      show={show}
+                    />
+                  </div>
                   {/* Show Header Banner */}
                   <div className="sticky left-0 z-20 flex items-center justify-between bg-zinc-900/95 backdrop-blur-md px-4 py-2.5 border-b border-zinc-800">
                     <div className="flex items-center space-x-2.5">
@@ -495,7 +531,9 @@ export function TimelineGanttView({
                                         key={idx}
                                         style={{ width: `${dayWidth}px` }}
                                         className={`shrink-0 border-r border-zinc-850/30 ${
-                                          day.isToday
+                                          isBroadcastDayOfWeek(day.dayOfWeek, show.broadcastSchedule)
+                                            ? showBroadcastColumnClass(show.color, true)
+                                            : day.isToday
                                             ? 'bg-amber-400/5'
                                             : day.isWeekend
                                             ? 'bg-zinc-950/30'

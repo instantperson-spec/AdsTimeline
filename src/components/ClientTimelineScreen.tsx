@@ -27,6 +27,13 @@ import {
   diffCalendarDays,
   toISODateString,
 } from '@/lib/date-utils';
+import {
+  headerBroadcastColumnClass,
+  isBroadcastDayOfWeek,
+  unionBroadcastWeekdays,
+  showBroadcastColumnClass,
+} from '@/lib/broadcast-schedule';
+import { GanttShowBroadcastOverlay } from '@/components/GanttBroadcastDayGrid';
 
 interface ClientTimelineScreenProps {
   ads: CommercialAd[];
@@ -132,6 +139,7 @@ export function ClientTimelineScreen({
       dateStr: string;
       dayOfMonth: number;
       dayOfWeekName: string;
+      dayOfWeek: number;
       isWeekend: boolean;
       isToday: boolean;
     }[] = [];
@@ -157,6 +165,7 @@ export function ClientTimelineScreen({
         dateStr: dStr,
         dayOfMonth: d.getDate(),
         dayOfWeekName: dayNames[dayOfWeek],
+        dayOfWeek,
         isWeekend,
         isToday,
       });
@@ -201,6 +210,11 @@ export function ClientTimelineScreen({
     if (selectedShowId === 'all') return shows;
     return shows.filter((s) => s.id === selectedShowId);
   }, [shows, selectedShowId]);
+
+  const headerBroadcastDays = useMemo(
+    () => new Set(unionBroadcastWeekdays(filteredShows)),
+    [filteredShows]
+  );
 
   const filteredAds = useMemo(() => {
     return ads.filter((ad) => {
@@ -542,8 +556,16 @@ export function ClientTimelineScreen({
                         : day.isWeekend
                         ? 'bg-zinc-950/60 text-zinc-500'
                         : 'text-zinc-300'
-                    }`}
+                    } ${headerBroadcastColumnClass(headerBroadcastDays.has(day.dayOfWeek))}`}
                   >
+                    {headerBroadcastDays.has(day.dayOfWeek) && (
+                      <span
+                        className="absolute top-0.5 right-0.5 text-[7px] font-black uppercase text-violet-300/90"
+                        title="Dzień emisji programu"
+                      >
+                        TX
+                      </span>
+                    )}
                     <span className="text-[10px] font-semibold uppercase opacity-80">
                       {day.dayOfWeekName}
                     </span>
@@ -581,7 +603,17 @@ export function ClientTimelineScreen({
               const breakNumbers = Array.from({ length: show.breakCount }, (_, i) => i + 1);
 
               return (
-                <div key={show.id} className="flex flex-col border-b-4 border-zinc-800/80">
+                <div key={show.id} className="relative flex flex-col border-b-4 border-zinc-800/80">
+                  <div
+                    className="absolute top-0 bottom-0 z-[1] flex pointer-events-none"
+                    style={{ left: 440, width: totalTimelineWidth }}
+                  >
+                    <GanttShowBroadcastOverlay
+                      dayList={dayList}
+                      dayWidth={dayWidth}
+                      show={show}
+                    />
+                  </div>
                   {/* Show Group Header (Distinct Bar) */}
                   <div className="sticky left-0 z-20 flex items-center justify-between bg-zinc-900/95 backdrop-blur-md px-5 py-3 border-b border-zinc-800">
                     <div className="flex items-center space-x-3">
@@ -762,7 +794,9 @@ export function ClientTimelineScreen({
                                         key={idx}
                                         style={{ width: `${dayWidth}px` }}
                                         className={`shrink-0 border-r border-zinc-850/40 ${
-                                          day.isToday
+                                          isBroadcastDayOfWeek(day.dayOfWeek, show.broadcastSchedule)
+                                            ? showBroadcastColumnClass(show.color, true)
+                                            : day.isToday
                                             ? 'bg-amber-400/5'
                                             : day.isWeekend
                                             ? 'bg-zinc-950/40'

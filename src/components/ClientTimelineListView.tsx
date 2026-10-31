@@ -33,6 +33,12 @@ import {
   diffCalendarDays,
   toISODateString,
 } from '@/lib/date-utils';
+import { headerBroadcastColumnClass, unionBroadcastWeekdays } from '@/lib/broadcast-schedule';
+import {
+  GanttDayGridBase,
+  GanttShowBroadcastOverlay,
+  type GanttDayColumn,
+} from '@/components/GanttBroadcastDayGrid';
 
 const GANTT_VISIBLE_DAYS = 42;
 
@@ -99,7 +105,12 @@ function dayColumnStyle(dayWidth: number): React.CSSProperties {
 
 const DAY_COLUMN_BORDER = 'box-border border-r border-zinc-700/80 shrink-0';
 
-type GanttDay = { isToday: boolean; isWeekend: boolean; dayOfWeekName?: string; dayOfMonth?: number };
+type GanttDay = GanttDayColumn & {
+  date: Date;
+  dateStr: string;
+  dayOfMonth: number;
+  dayOfWeekName: string;
+};
 
 function labelColumnStyle(): React.CSSProperties {
   return {
@@ -117,32 +128,6 @@ function timelineTrackStyle(totalTimelineWidth: number): React.CSSProperties {
     maxWidth: totalTimelineWidth,
     flex: `0 0 ${totalTimelineWidth}px`,
   };
-}
-
-function GanttDayGrid({
-  dayList,
-  dayWidth,
-}: {
-  dayList: GanttDay[];
-  dayWidth: number;
-}) {
-  return (
-    <div className="flex h-full w-full pointer-events-none" aria-hidden>
-      {dayList.map((day, idx) => (
-        <div
-          key={idx}
-          style={dayColumnStyle(dayWidth)}
-          className={`${DAY_COLUMN_BORDER} h-full ${
-            day.isToday
-              ? 'border-amber-500/35 bg-amber-400/[0.07]'
-              : day.isWeekend
-              ? 'border-zinc-700/60 bg-zinc-950/35'
-              : 'bg-transparent'
-          }`}
-        />
-      ))}
-    </div>
-  );
 }
 
 function defaultGanttWindowStart(today: Date): Date {
@@ -227,14 +212,7 @@ export function ClientTimelineListView({
   const { timelineStartDate, dayList, weekHeaders } = useMemo(() => {
     const start = new Date(ganttWindowStart);
 
-    const days: {
-      date: Date;
-      dateStr: string;
-      dayOfMonth: number;
-      dayOfWeekName: string;
-      isWeekend: boolean;
-      isToday: boolean;
-    }[] = [];
+    const days: GanttDay[] = [];
 
     const weeks: { weekLabel: string; spanDays: number; startIdx: number }[] = [];
 
@@ -257,6 +235,7 @@ export function ClientTimelineListView({
         dateStr: dStr,
         dayOfMonth: d.getDate(),
         dayOfWeekName: dayNames[dayOfWeek],
+        dayOfWeek,
         isWeekend,
         isToday,
       });
@@ -300,6 +279,11 @@ export function ClientTimelineListView({
     if (selectedShowId === 'all') return shows;
     return shows.filter((s) => s.id === selectedShowId);
   }, [shows, selectedShowId]);
+
+  const headerBroadcastDays = useMemo(
+    () => new Set(unionBroadcastWeekdays(filteredShows)),
+    [filteredShows]
+  );
 
   const filteredAds = useMemo(() => {
     return ads.filter((ad) => {
@@ -823,6 +807,13 @@ export function ClientTimelineListView({
                 <span>Jump to today (31 Oct)</span>
               </button>
 
+              <span
+                className="text-[10px] text-zinc-400 font-medium px-2 py-1 rounded-lg border border-zinc-800 bg-zinc-950/80 shrink-0"
+                title="Kolumny z oznaczeniem TX to dni emisji programu (wg harmonogramu)"
+              >
+                <span className="font-black text-violet-300">TX</span> = dzień emisji programu
+              </span>
+
               <div className="flex flex-wrap items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 max-w-full">
                 <span className="text-[10px] text-zinc-500 font-bold px-1.5 shrink-0">Day grid:</span>
                 {GANTT_DAY_SCALES.map((z) => (
@@ -882,8 +873,16 @@ export function ClientTimelineListView({
                         : day.isWeekend
                         ? 'bg-zinc-950/70 text-zinc-500'
                         : 'text-zinc-400'
-                    }`}
+                    } ${headerBroadcastColumnClass(headerBroadcastDays.has(day.dayOfWeek))}`}
                   >
+                    {headerBroadcastDays.has(day.dayOfWeek) && (
+                      <span
+                        className="absolute top-0.5 right-0.5 text-[7px] font-black uppercase text-violet-300/90"
+                        title="Programme broadcast day"
+                      >
+                        TX
+                      </span>
+                    )}
                     {dayWidth >= 56 && (
                       <span className="text-[9px] font-semibold uppercase leading-none opacity-70">
                         {day.dayOfWeekName}
@@ -926,14 +925,28 @@ export function ClientTimelineListView({
                 className="absolute top-0 bottom-0 z-0 pointer-events-none flex"
                 style={{ left: GANTT_LABEL_COL_PX, ...timelineTrackStyle(totalTimelineWidth) }}
               >
-                <GanttDayGrid dayList={dayList} dayWidth={dayWidth} />
+                <GanttDayGridBase
+                  dayList={dayList}
+                  dayWidth={dayWidth}
+                  broadcastWeekdays={unionBroadcastWeekdays(filteredShows)}
+                />
               </div>
               {filteredShows.map((show) => {
                 const showAds = filteredAds.filter((a) => a.showId === show.id);
                 const breakNumbers = Array.from({ length: show.breakCount }, (_, i) => i + 1);
 
                 return (
-                  <div key={show.id} className="flex flex-col border-b-4 border-zinc-800">
+                  <div key={show.id} className="relative flex flex-col border-b-4 border-zinc-800">
+                    <div
+                      className="absolute top-0 bottom-0 z-[1] flex pointer-events-none"
+                      style={{ left: GANTT_LABEL_COL_PX, ...timelineTrackStyle(totalTimelineWidth) }}
+                    >
+                      <GanttShowBroadcastOverlay
+                        dayList={dayList}
+                        dayWidth={dayWidth}
+                        show={show}
+                      />
+                    </div>
                     {/* Show Group Header */}
                     <div className="sticky left-0 z-20 flex items-center justify-between bg-zinc-900/95 backdrop-blur-md px-4 py-2 border-b border-zinc-700">
                       <div className="flex items-center space-x-2.5">
