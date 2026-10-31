@@ -44,8 +44,8 @@ Example: `/client?show=IWMTV&view=list,timeline`
 ## Tech stack
 
 - **Next.js 16** (App Router), React 19, Tailwind CSS v4
-- **Persistence (current):** browser `localStorage` keys `instant_ads_timeline_*_v6`
-- **Planned production:** Neon Postgres (metadata) + Vercel Blob (media)
+- **Persistence:** Neon Postgres (shows + ads metadata)
+- **Media:** Vercel Blob (upload via `/api/media/upload`)
 
 Sample MP4/Unsplash demo assets are **not** included. Placeholder poster: `/placeholder-poster.svg`.
 
@@ -62,6 +62,17 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) (admin) and [http://localhost:3000/client?show=all&view=list](http://localhost:3000/client?show=all&view=list) (client).
 
+### Environment variables
+
+Copy `.env.example` to `.env.local` and set:
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Neon Postgres connection string (pooled recommended) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token (for media uploads) |
+
+On first API request the app creates tables and seeds **IWMTV** / **MCS** if the database is empty.
+
 ```bash
 npm run build   # production build
 npm start       # run production server locally
@@ -74,7 +85,11 @@ npm start       # run production server locally
 1. Import [github.com/instantperson-spec/AdsTimeline](https://github.com/instantperson-spec/AdsTimeline) in the Vercel dashboard, **or**:
 2. From the project directory: `npx vercel --prod` (use project name e.g. `ads-timeline` if the folder path contains spaces).
 
-Framework preset: **Next.js**. No environment variables required for the current localStorage build.
+Framework preset: **Next.js**.
+
+1. Create a [Neon](https://neon.tech) project and add **`DATABASE_URL`** to the Vercel project (Production + Preview).
+2. In Vercel → **Storage** → create a **Blob** store linked to `ads-timeline`; **`BLOB_READ_WRITE_TOKEN`** is added automatically.
+3. Redeploy. Optionally disable **Deployment Protection** if client links must work without Vercel login.
 
 ---
 

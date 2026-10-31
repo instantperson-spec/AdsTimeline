@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { X, Plus, Pencil, Calendar, Film, Upload, Check } from 'lucide-react';
 import { CommercialAd, CommercialShow, AdCategory } from '@/types/timeline';
 import { computeAdStatus } from '@/lib/date-utils';
+import { uploadMediaFile } from '@/lib/timeline-api';
 
 interface NewAdModalProps {
   isOpen: boolean;
@@ -12,8 +13,8 @@ interface NewAdModalProps {
   initialShowId?: string;
   initialBreakNumber?: number;
   editAd?: CommercialAd | null;
-  onCreateAd: (ad: CommercialAd) => void;
-  onUpdateAd?: (ad: CommercialAd) => void;
+  onCreateAd: (ad: CommercialAd) => void | Promise<void>;
+  onUpdateAd?: (ad: CommercialAd) => void | Promise<void>;
 }
 
 const CATEGORIES: AdCategory[] = [
@@ -53,6 +54,8 @@ export function NewAdModal({
   const [frameGrabUrl, setFrameGrabUrl] = useState('/placeholder-poster.svg');
   const [videoUrl, setVideoUrl] = useState('');
   const [notes, setNotes] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,20 +100,30 @@ export function NewAdModal({
 
   const selectedShow = shows.find((s) => s.id === showId) || shows[0];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const objectUrl = URL.createObjectURL(file);
-    if (file.type.startsWith('video/')) {
-      setVideoUrl(objectUrl);
-      // Generate fallback poster if needed
-    } else if (file.type.startsWith('image/')) {
-      setFrameGrabUrl(objectUrl);
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const { url } = await uploadMediaFile(file);
+      if (file.type.startsWith('video/')) {
+        setVideoUrl(url);
+      } else if (file.type.startsWith('image/')) {
+        setFrameGrabUrl(url);
+      } else {
+        setVideoUrl(url);
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !advertiser.trim()) return;
 
@@ -141,12 +154,16 @@ export function NewAdModal({
 
     payload.status = computeAdStatus(payload);
 
-    if (isEditMode && onUpdateAd) {
-      onUpdateAd(payload);
-    } else {
-      onCreateAd(payload);
+    try {
+      if (isEditMode && onUpdateAd) {
+        await onUpdateAd(payload);
+      } else {
+        await onCreateAd(payload);
+      }
+      onClose();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Save failed');
     }
-    onClose();
 
     if (!isEditMode) {
       setTitle('');
@@ -398,7 +415,7 @@ export function NewAdModal({
               </span>
               <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-indigo-300 font-semibold text-[11px] flex items-center space-x-1">
                 <Upload className="w-3 h-3" />
-                <span>Upload file (MP4 / JPG)</span>
+                <span>{uploading ? 'Uploading…' : 'Upload to Blob (MP4 / JPG)'}</span>
                 <input
                   type="file"
                   accept="video/mp4,video/quicktime,image/*"
@@ -407,6 +424,10 @@ export function NewAdModal({
                 />
               </label>
             </div>
+
+            {uploadError && (
+              <p className="text-xs text-rose-400">{uploadError}</p>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
               <div>

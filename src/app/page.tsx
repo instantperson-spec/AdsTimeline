@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CommercialShow, CommercialAd, AdminNavView } from '@/types/timeline';
-import { INITIAL_SHOWS, INITIAL_ADS } from '@/lib/mock-data';
 import { computeAdStatus } from '@/lib/date-utils';
+import {
+  fetchTimelineData,
+  apiCreateShow,
+  apiDeleteShow,
+  apiUpdateShowBreakCount,
+  apiRemoveBreak,
+  apiCreateAd,
+  apiUpdateAd,
+  apiDeleteAd,
+} from '@/lib/timeline-api';
 
 import { Header } from '@/components/Header';
 import { AdminSidebar } from '@/components/AdminSidebar';
@@ -14,27 +23,9 @@ import { NewAdModal } from '@/components/NewAdModal';
 import { NewShowModal } from '@/components/NewShowModal';
 import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 
-const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v6';
-const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v6';
-
-const FAITH_WORLD_TV = 'Faith World TV';
-
-const SHOW_BROADCAST_PATCH: Record<string, string> = {
-  'show-iwmtv': 'Wednesdays 22:00 GMT — Faith World TV',
-  'show-mcs': 'Wednesdays 23:00 GMT — Faith World TV',
-};
-
-function migrateShows(shows: CommercialShow[]): CommercialShow[] {
-  return shows.map((s) => {
-    const schedule = SHOW_BROADCAST_PATCH[s.id];
-    if (!schedule) return s;
-    return { ...s, channel: FAITH_WORLD_TV, broadcastSchedule: schedule };
-  });
-}
-
 export default function AdsTimelineApp() {
-  const [shows, setShows] = useState<CommercialShow[]>(INITIAL_SHOWS);
-  const [ads, setAds] = useState<CommercialAd[]>(INITIAL_ADS);
+  const [shows, setShows] = useState<CommercialShow[]>([]);
+  const [ads, setAds] = useState<CommercialAd[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('all');
   const [adminView, setAdminView] = useState<AdminNavView>('cards');
 
@@ -46,46 +37,34 @@ export default function AdsTimelineApp() {
   const [isNewShowOpen, setIsNewShowOpen] = useState(false);
   const [isCueSheetOpen, setIsCueSheetOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      const savedShows = localStorage.getItem(STORAGE_KEY_SHOWS);
-      const savedAds = localStorage.getItem(STORAGE_KEY_ADS);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-      const parsedShows: CommercialShow[] = savedShows ? JSON.parse(savedShows) : INITIAL_SHOWS;
-      const baseShows = migrateShows(parsedShows);
-      const baseAds: CommercialAd[] = savedAds ? JSON.parse(savedAds) : INITIAL_ADS;
-
-      const updatedAds = baseAds.map((ad) => ({
-        ...ad,
-        status: computeAdStatus(ad),
-      }));
-
-      setShows(baseShows);
-      setAds(updatedAds);
-      localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(baseShows));
-      localStorage.setItem(STORAGE_KEY_ADS, JSON.stringify(updatedAds));
-    } catch (e) {
-      console.warn('Could not read from localStorage', e);
-    }
+  const reloadTimeline = useCallback(async () => {
+    const data = await fetchTimelineData();
+    setShows(data.shows);
+    setAds(data.ads.map((ad) => ({ ...ad, status: computeAdStatus(ad) })));
   }, []);
 
-  const saveShows = (updated: CommercialShow[]) => {
-    setShows(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const saveAds = (updated: CommercialAd[]) => {
-    setAds(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY_ADS, JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        await reloadTimeline();
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : 'Failed to load timeline');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadTimeline]);
 
   const openNewAdModal = (showId?: string, breakNumber?: number) => {
     setEditingAd(null);
@@ -108,87 +87,74 @@ export default function AdsTimelineApp() {
     setNewAdBreakNumber(undefined);
   };
 
-  const handleCreateAd = (newAd: CommercialAd) => {
-    const withStatus = { ...newAd, status: computeAdStatus(newAd) };
-    saveAds([withStatus, ...ads]);
+  const handleCreateAd = async (newAd: CommercialAd) => {
+    const created = await apiCreateAd(newAd);
+    setAds((prev) => [{ ...created, status: computeAdStatus(created) }, ...prev]);
   };
 
-  const handleUpdateAd = (updatedAd: CommercialAd) => {
-    const withStatus = { ...updatedAd, status: computeAdStatus(updatedAd) };
-    const nextAds = ads.map((a) => (a.id === withStatus.id ? withStatus : a));
-    saveAds(nextAds);
+  const handleUpdateAd = async (updatedAd: CommercialAd) => {
+    const saved = await apiUpdateAd(updatedAd);
+    const withStatus = { ...saved, status: computeAdStatus(saved) };
+    setAds((prev) => prev.map((a) => (a.id === withStatus.id ? withStatus : a)));
     if (selectedAd?.id === withStatus.id) {
       setSelectedAd(withStatus);
     }
   };
 
-  const handleDeleteAd = (adId: string) => {
-    const nextAds = ads.filter((a) => a.id !== adId);
-    saveAds(nextAds);
+  const handleDeleteAd = async (adId: string) => {
+    await apiDeleteAd(adId);
+    setAds((prev) => prev.filter((a) => a.id !== adId));
     if (selectedAd?.id === adId) {
       setSelectedAd(null);
     }
   };
 
-  const handleTakeOffAd = (adId: string, replacementNote?: string) => {
-    const nextAds = ads.map((a) => {
-      if (a.id === adId) {
-        return {
-          ...a,
-          takenOffAt: new Date().toISOString().split('T')[0],
-          replacementAdTitle: replacementNote || 'Pulled from air and replaced with station filler.',
-          status: 'taken_off' as const,
-        };
-      }
-      return a;
-    });
-    saveAds(nextAds);
-    if (selectedAd?.id === adId) {
-      setSelectedAd(nextAds.find((a) => a.id === adId) || null);
-    }
+  const handleTakeOffAd = async (adId: string, replacementNote?: string) => {
+    const ad = ads.find((a) => a.id === adId);
+    if (!ad) return;
+    const updated: CommercialAd = {
+      ...ad,
+      takenOffAt: new Date().toISOString().split('T')[0],
+      replacementAdTitle: replacementNote || 'Pulled from air and replaced with station filler.',
+    };
+    await handleUpdateAd(updated);
   };
 
-  const handleRestoreAd = (adId: string) => {
-    const nextAds = ads.map((a) => {
-      if (a.id !== adId) return a;
-      const restored = {
-        ...a,
-        takenOffAt: undefined,
-        replacementAdTitle: undefined,
-      };
-      return { ...restored, status: computeAdStatus(restored) };
-    });
-    saveAds(nextAds);
-    if (selectedAd?.id === adId) {
-      setSelectedAd(nextAds.find((a) => a.id === adId) || null);
-    }
+  const handleRestoreAd = async (adId: string) => {
+    const ad = ads.find((a) => a.id === adId);
+    if (!ad) return;
+    const updated: CommercialAd = {
+      ...ad,
+      takenOffAt: undefined,
+      replacementAdTitle: undefined,
+    };
+    await handleUpdateAd(updated);
   };
 
-  const handleCreateShow = (newShow: CommercialShow) => {
-    const nextShows = [...shows, newShow];
-    saveShows(nextShows);
+  const handleCreateShow = async (newShow: CommercialShow) => {
+    await apiCreateShow(newShow);
+    setShows((prev) => [...prev, newShow]);
     setSelectedShowId(newShow.id);
   };
 
-  const handleDeleteShow = (showId: string) => {
-    const nextShows = shows.filter((s) => s.id !== showId);
-    const nextAds = ads.filter((a) => a.showId !== showId);
-    saveShows(nextShows);
-    saveAds(nextAds);
+  const handleDeleteShow = async (showId: string) => {
+    await apiDeleteShow(showId);
+    setShows((prev) => prev.filter((s) => s.id !== showId));
+    setAds((prev) => prev.filter((a) => a.showId !== showId));
     setSelectedShowId('all');
   };
 
-  const handleAddBreak = (showId: string) => {
-    const nextShows = shows.map((s) => {
-      if (s.id === showId) {
-        return { ...s, breakCount: Math.min(6, s.breakCount + 1) };
-      }
-      return s;
-    });
-    saveShows(nextShows);
+  const handleAddBreak = async (showId: string) => {
+    const show = shows.find((s) => s.id === showId);
+    if (!show) return;
+    const nextCount = Math.min(6, show.breakCount + 1);
+    await apiUpdateShowBreakCount(showId, nextCount);
+    setShows((prev) =>
+      prev.map((s) => (s.id === showId ? { ...s, breakCount: nextCount } : s))
+    );
   };
 
-  const handleRemoveBreak = (showId: string, breakNumber: number) => {
+  const handleRemoveBreak = async (showId: string, breakNumber: number) => {
     const show = shows.find((s) => s.id === showId);
     if (!show || show.breakCount <= 1) return;
 
@@ -196,28 +162,42 @@ export default function AdsTimelineApp() {
       return;
     }
 
-    const nextShows = shows.map((s) => {
-      if (s.id === showId) {
-        return { ...s, breakCount: s.breakCount - 1 };
-      }
-      return s;
-    });
-
-    const nextAds = ads
-      .filter((a) => !(a.showId === showId && a.breakNumber === breakNumber))
-      .map((a) => {
-        if (a.showId === showId && a.breakNumber > breakNumber) {
-          return { ...a, breakNumber: a.breakNumber - 1 };
-        }
-        return a;
-      })
-      .map((a) => ({ ...a, status: computeAdStatus(a) }));
-
-    saveShows(nextShows);
-    saveAds(nextAds);
+    const data = await apiRemoveBreak(showId, breakNumber);
+    setShows(data.shows);
+    setAds(data.ads.map((ad) => ({ ...ad, status: computeAdStatus(ad) })));
   };
 
   const expiredCount = ads.filter((a) => !a.takenOffAt && a.status === 'expired').length;
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center text-zinc-400">
+        Loading schedule…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center p-6">
+        <div className="max-w-md rounded-2xl border border-rose-500/40 bg-rose-950/30 p-6 text-center">
+          <p className="text-rose-200 font-semibold">Cannot load timeline</p>
+          <p className="text-sm text-zinc-400 mt-2">{loadError}</p>
+          <p className="text-xs text-zinc-500 mt-4">
+            Set <code className="text-zinc-300">DATABASE_URL</code> (Neon) and{' '}
+            <code className="text-zinc-300">BLOB_READ_WRITE_TOKEN</code> (Vercel Blob) on Vercel.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">

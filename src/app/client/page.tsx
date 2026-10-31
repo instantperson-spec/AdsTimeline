@@ -1,34 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { LayoutList, GanttChart } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
-import { INITIAL_SHOWS, INITIAL_ADS } from '@/lib/mock-data';
 import { computeAdStatus } from '@/lib/date-utils';
 import { parseClientShowParam, parseClientViewsParam } from '@/lib/client-portal-url';
 import type { ClientPortalViewMode } from '@/lib/client-portal-url';
+import { fetchTimelineData } from '@/lib/timeline-api';
 import { ClientPortalView } from '@/components/ClientPortalView';
 import { ClientTimelineListView } from '@/components/ClientTimelineListView';
 import { AdPreviewModal } from '@/components/AdPreviewModal';
-
-const STORAGE_KEY_SHOWS = 'instant_ads_timeline_shows_v6';
-const STORAGE_KEY_ADS = 'instant_ads_timeline_ads_v6';
-
-const FAITH_WORLD_TV = 'Faith World TV';
-
-const SHOW_BROADCAST_PATCH: Record<string, string> = {
-  'show-iwmtv': 'Wednesdays 22:00 GMT — Faith World TV',
-  'show-mcs': 'Wednesdays 23:00 GMT — Faith World TV',
-};
-
-function migrateShows(shows: CommercialShow[]): CommercialShow[] {
-  return shows.map((s) => {
-    const schedule = SHOW_BROADCAST_PATCH[s.id];
-    if (!schedule) return s;
-    return { ...s, channel: FAITH_WORLD_TV, broadcastSchedule: schedule };
-  });
-}
 
 function ClientPortalInner() {
   const searchParams = useSearchParams();
@@ -38,13 +20,15 @@ function ClientPortalInner() {
   const showTimeline = clientViews.includes('timeline');
   const useTabs = showList && showTimeline;
 
-  const [shows, setShows] = useState<CommercialShow[]>(INITIAL_SHOWS);
-  const [ads, setAds] = useState<CommercialAd[]>(INITIAL_ADS);
+  const [shows, setShows] = useState<CommercialShow[]>([]);
+  const [ads, setAds] = useState<CommercialAd[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('all');
   const [selectedAd, setSelectedAd] = useState<CommercialAd | null>(null);
   const [activeTab, setActiveTab] = useState<ClientPortalViewMode>(() =>
     showList ? 'list' : 'timeline'
   );
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (showList && !showTimeline) setActiveTab('list');
@@ -52,34 +36,56 @@ function ClientPortalInner() {
   }, [showList, showTimeline]);
 
   useEffect(() => {
-    try {
-      const savedShows = localStorage.getItem(STORAGE_KEY_SHOWS);
-      const savedAds = localStorage.getItem(STORAGE_KEY_ADS);
-
-      const parsedShows: CommercialShow[] = savedShows ? JSON.parse(savedShows) : INITIAL_SHOWS;
-      const baseShows = migrateShows(parsedShows);
-      const baseAds: CommercialAd[] = savedAds ? JSON.parse(savedAds) : INITIAL_ADS;
-
-      const updatedAds = baseAds.map((ad) => ({
-        ...ad,
-        status: computeAdStatus(ad),
-      }));
-
-      setShows(baseShows);
-      setAds(updatedAds);
-      setSelectedShowId(parseClientShowParam(showFromUrl, baseShows));
-    } catch (e) {
-      console.warn('Could not read from localStorage', e);
-    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const data = await fetchTimelineData();
+        if (cancelled) return;
+        setShows(data.shows);
+        setAds(
+          data.ads
+            .filter((a) => !a.takenOffAt)
+            .map((a) => ({ ...a, status: computeAdStatus(a) }))
+        );
+        setSelectedShowId(parseClientShowParam(showFromUrl, data.shows));
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : 'Failed to load');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [showFromUrl]);
 
-  const clientAds = useMemo(() => ads.filter((a) => !a.takenOffAt), [ads]);
+  const clientAds = ads;
 
   const currentShow =
     selectedShowId === 'all' ? null : shows.find((s) => s.id === selectedShowId);
 
   const showListPanel = !useTabs ? showList : activeTab === 'list';
   const showTimelinePanel = !useTabs ? showTimeline : activeTab === 'timeline';
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center text-zinc-400">
+        Loading…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center p-6 text-center text-zinc-400">
+        <p>{loadError}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
