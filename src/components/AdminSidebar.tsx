@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutGrid, CalendarDays, Pencil, Layers } from 'lucide-react';
+import { LayoutGrid, CalendarDays, Pencil, Layers, Radio } from 'lucide-react';
 import type { AdminNavView } from '@/types/timeline';
 
 interface AdminSidebarProps {
@@ -56,6 +56,17 @@ export function AdminSidebar({ activeView, onChangeView, expiredCount }: AdminSi
       <div>
         <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
           Traffic
+        </p>
+        <button
+          type="button"
+          onClick={() => onChangeView('programmes')}
+          className={navBtn(activeView === 'programmes')}
+        >
+          <Radio className="w-4 h-4 shrink-0 opacity-90" />
+          <span className="leading-tight">Programmes</span>
+        </button>
+        <p className="px-3 mt-1 mb-1 text-[10px] text-zinc-500 leading-snug">
+          Name, air days, slot, add / delete
         </p>
         <button
           type="button"

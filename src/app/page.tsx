@@ -7,6 +7,7 @@ import {
   fetchTimelineData,
   apiCreateShow,
   apiDeleteShow,
+  apiUpdateShow,
   apiUpdateShowBreakCount,
   apiRemoveBreak,
   apiCreateAd,
@@ -18,6 +19,7 @@ import { Header } from '@/components/Header';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { ClientTimelineListView } from '@/components/ClientTimelineListView';
 import { BreaksSlotMatrix } from '@/components/BreaksSlotMatrix';
+import { ShowProgrammesPanel } from '@/components/ShowProgrammesPanel';
 import { AdPreviewModal } from '@/components/AdPreviewModal';
 import { NewAdModal } from '@/components/NewAdModal';
 import { NewShowModal } from '@/components/NewShowModal';
@@ -132,9 +134,9 @@ export default function AdsTimelineApp() {
   };
 
   const handleCreateShow = async (newShow: CommercialShow) => {
-    await apiCreateShow(newShow);
-    setShows((prev) => [...prev, newShow]);
-    setSelectedShowId(newShow.id);
+    const created = await apiCreateShow(newShow);
+    setShows((prev) => [...prev, created]);
+    setSelectedShowId(created.id);
   };
 
   const handleDeleteShow = async (showId: string) => {
@@ -142,6 +144,11 @@ export default function AdsTimelineApp() {
     setShows((prev) => prev.filter((s) => s.id !== showId));
     setAds((prev) => prev.filter((a) => a.showId !== showId));
     setSelectedShowId('all');
+  };
+
+  const handleUpdateShow = async (showId: string, patch: Partial<CommercialShow>) => {
+    const saved = await apiUpdateShow(showId, patch);
+    setShows((prev) => prev.map((s) => (s.id === showId ? saved : s)));
   };
 
   const handleAddBreak = async (showId: string) => {
@@ -230,6 +237,16 @@ export default function AdsTimelineApp() {
               selectedShowId={selectedShowId}
               onSelectAd={setSelectedAd}
               subView={adminView === 'cards' ? 'cards_timeline' : 'gantt_timeline'}
+            />
+          )}
+
+          {adminView === 'programmes' && (
+            <ShowProgrammesPanel
+              shows={shows}
+              selectedShowId={selectedShowId}
+              onSaveShow={handleUpdateShow}
+              onDeleteShow={handleDeleteShow}
+              onOpenNewShow={() => setIsNewShowOpen(true)}
             />
           )}
 

@@ -1,5 +1,6 @@
 import { CommercialAd, CommercialShow, AdStatus } from '@/types/timeline';
 import { computeAdStatus } from '@/lib/date-utils';
+import { parseBroadcastWeekdaysFromDb, parseBroadcastWeekdays } from '@/lib/show-broadcast';
 
 export type ShowRow = {
   id: string;
@@ -10,6 +11,7 @@ export type ShowRow = {
   break_count: number;
   color: string;
   description: string | null;
+  broadcast_weekdays?: unknown;
   created_at: string | Date;
 };
 
@@ -48,12 +50,17 @@ function toIsoDateTime(value: string | Date): string {
 }
 
 export function mapShowRow(row: ShowRow): CommercialShow {
+  let broadcastWeekdays = parseBroadcastWeekdaysFromDb(row.broadcast_weekdays);
+  if (broadcastWeekdays.length === 0) {
+    broadcastWeekdays = parseBroadcastWeekdays(row.broadcast_schedule);
+  }
   return {
     id: row.id,
     title: row.title,
     code: row.code,
     channel: row.channel,
     broadcastSchedule: row.broadcast_schedule,
+    broadcastWeekdays,
     breakCount: row.break_count,
     color: row.color as CommercialShow['color'],
     description: row.description ?? undefined,

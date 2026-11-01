@@ -8,6 +8,7 @@ export const INITIAL_SHOWS: CommercialShow[] = [
     code: 'IWMTV',
     channel: 'Faith World TV',
     broadcastSchedule: 'Wednesdays 22:00 GMT — Faith World TV',
+    broadcastWeekdays: [3],
     breakCount: 3,
     color: 'emerald',
     description:
@@ -20,6 +21,7 @@ export const INITIAL_SHOWS: CommercialShow[] = [
     code: 'MCS',
     channel: 'Faith World TV',
     broadcastSchedule: 'Wednesdays 23:00 GMT — Faith World TV',
+    broadcastWeekdays: [3],
     breakCount: 2,
     color: 'amber',
     description:

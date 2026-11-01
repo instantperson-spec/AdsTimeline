@@ -27,6 +27,30 @@ export async function apiDeleteShow(showId: string): Promise<void> {
   await parseJson(res);
 }
 
+export async function apiUpdateShow(
+  showId: string,
+  patch: Partial<
+    Pick<
+      CommercialShow,
+      | 'title'
+      | 'code'
+      | 'channel'
+      | 'broadcastSchedule'
+      | 'broadcastWeekdays'
+      | 'color'
+      | 'description'
+      | 'breakCount'
+    >
+  >
+): Promise<CommercialShow> {
+  const res = await fetch(`/api/shows/${encodeURIComponent(showId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  return parseJson(res);
+}
+
 export async function apiUpdateShowBreakCount(showId: string, breakCount: number): Promise<void> {
   const res = await fetch(`/api/shows/${encodeURIComponent(showId)}`, {
     method: 'PATCH',

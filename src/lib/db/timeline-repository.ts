@@ -4,25 +4,54 @@ import { getSql } from '@/lib/db/client';
 import { ensureSchema } from '@/lib/db/schema';
 import { mapAdRow, mapShowRow, type AdRow, type ShowRow } from '@/lib/db/mappers';
 import { STORED_AD_CATEGORY } from '@/lib/db/stored-ad-category';
+import { parseBroadcastWeekdaysFromDb, parseBroadcastWeekdays } from '@/lib/show-broadcast';
+
+async function backfillShowBroadcastWeekdays(sql: ReturnType<typeof getSql>): Promise<void> {
+  const rows = await sql`
+    SELECT id, broadcast_schedule, broadcast_weekdays FROM shows
+  `;
+  for (const row of rows) {
+    const existing = parseBroadcastWeekdaysFromDb(
+      (row as { broadcast_weekdays: unknown }).broadcast_weekdays
+    );
+    if (existing.length > 0) continue;
+    const parsed = parseBroadcastWeekdays(
+      (row as { broadcast_schedule: string }).broadcast_schedule
+    );
+    if (parsed.length === 0) continue;
+    await sql`
+      UPDATE shows
+      SET broadcast_weekdays = ${JSON.stringify(parsed)}::jsonb
+      WHERE id = ${(row as { id: string }).id}
+    `;
+  }
+}
 
 export async function initTimelineData(): Promise<void> {
   const sql = getSql();
   await ensureSchema(sql);
+  await backfillShowBroadcastWeekdays(sql);
 
   const countRows = await sql`SELECT COUNT(*)::int AS count FROM shows`;
   const count = (countRows[0]?.count as number | undefined) ?? 0;
   if (count > 0) return;
 
   for (const show of INITIAL_SHOWS) {
+    const seedWeekdays =
+      show.broadcastWeekdays?.length > 0
+        ? show.broadcastWeekdays
+        : parseBroadcastWeekdays(show.broadcastSchedule);
     await sql`
       INSERT INTO shows (
-        id, title, code, channel, broadcast_schedule, break_count, color, description, created_at
+        id, title, code, channel, broadcast_schedule, broadcast_weekdays,
+        break_count, color, description, created_at
       ) VALUES (
         ${show.id},
         ${show.title},
         ${show.code},
         ${show.channel},
         ${show.broadcastSchedule},
+        ${JSON.stringify(seedWeekdays)}::jsonb,
         ${show.breakCount},
         ${show.color},
         ${show.description ?? null},
@@ -54,22 +83,77 @@ export async function fetchTimeline(): Promise<{ shows: CommercialShow[]; ads: C
 export async function insertShow(show: CommercialShow): Promise<CommercialShow> {
   await initTimelineData();
   const sql = getSql();
+  const weekdays =
+    show.broadcastWeekdays?.length > 0
+      ? show.broadcastWeekdays
+      : parseBroadcastWeekdays(show.broadcastSchedule);
   await sql`
     INSERT INTO shows (
-      id, title, code, channel, broadcast_schedule, break_count, color, description, created_at
+      id, title, code, channel, broadcast_schedule, broadcast_weekdays,
+      break_count, color, description, created_at
     ) VALUES (
       ${show.id},
       ${show.title},
       ${show.code},
       ${show.channel},
       ${show.broadcastSchedule},
+      ${JSON.stringify(weekdays)}::jsonb,
       ${show.breakCount},
       ${show.color},
       ${show.description ?? null},
       ${show.createdAt}
     )
   `;
-  return show;
+  return { ...show, broadcastWeekdays: weekdays };
+}
+
+export type ShowUpdateFields = Partial<
+  Pick<
+    CommercialShow,
+    | 'title'
+    | 'code'
+    | 'channel'
+    | 'broadcastSchedule'
+    | 'broadcastWeekdays'
+    | 'color'
+    | 'description'
+    | 'breakCount'
+  >
+>;
+
+export async function updateShow(showId: string, patch: ShowUpdateFields): Promise<CommercialShow> {
+  await initTimelineData();
+  const sql = getSql();
+  const rows = await sql`SELECT * FROM shows WHERE id = ${showId}`;
+  if (!rows.length) {
+    throw new Error('Show not found');
+  }
+  const current = mapShowRow(rows[0] as ShowRow);
+  const next: CommercialShow = {
+    ...current,
+    ...patch,
+    broadcastWeekdays:
+      patch.broadcastWeekdays !== undefined
+        ? patch.broadcastWeekdays
+        : current.broadcastWeekdays,
+  };
+  if (next.broadcastWeekdays.length === 0) {
+    next.broadcastWeekdays = parseBroadcastWeekdays(next.broadcastSchedule);
+  }
+
+  await sql`
+    UPDATE shows SET
+      title = ${next.title},
+      code = ${next.code},
+      channel = ${next.channel},
+      broadcast_schedule = ${next.broadcastSchedule},
+      broadcast_weekdays = ${JSON.stringify(next.broadcastWeekdays)}::jsonb,
+      break_count = ${next.breakCount},
+      color = ${next.color},
+      description = ${next.description ?? null}
+    WHERE id = ${showId}
+  `;
+  return next;
 }
 
 export async function deleteShow(showId: string): Promise<void> {

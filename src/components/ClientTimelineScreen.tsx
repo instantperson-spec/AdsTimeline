@@ -561,7 +561,7 @@ export function ClientTimelineScreen({
                     {headerBroadcastDays.has(day.dayOfWeek) && (
                       <span
                         className="absolute top-0.5 right-0.5 text-[7px] font-black uppercase text-violet-300/90"
-                        title="Dzień emisji programu"
+                        title="Programme broadcast day"
                       >
                         TX
                       </span>
@@ -672,7 +672,7 @@ export function ClientTimelineScreen({
 
                             <div className="flex items-center space-x-2 text-[11px] font-mono text-zinc-300">
                               <span>
-                                {breakAds.length} {breakAds.length === 1 ? 'spot' : 'spoty'}
+                                {breakAds.length} {breakAds.length === 1 ? 'spot' : 'spots'}
                               </span>
                               <span>&bull;</span>
                               <span className="font-bold text-white">{totalDuration}s total</span>
@@ -794,7 +794,7 @@ export function ClientTimelineScreen({
                                         key={idx}
                                         style={{ width: `${dayWidth}px` }}
                                         className={`shrink-0 border-r border-zinc-850/40 ${
-                                          isBroadcastDayOfWeek(day.dayOfWeek, show.broadcastSchedule)
+                                          isBroadcastDayOfWeek(day.dayOfWeek, show)
                                             ? showBroadcastColumnClass(show.color, true)
                                             : day.isToday
                                             ? 'bg-amber-400/5'

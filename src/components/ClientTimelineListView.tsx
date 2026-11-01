@@ -667,7 +667,7 @@ export function ClientTimelineListView({
                                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />
                                           <span>Today: 31 Oct</span>
                                         </span>
-                                        <span>{progress.percentage}% okresu emisji</span>
+                                        <span>{progress.percentage}% of flight elapsed</span>
                                       </div>
                                     </div>
 
@@ -809,9 +809,9 @@ export function ClientTimelineListView({
 
               <span
                 className="text-[10px] text-zinc-400 font-medium px-2 py-1 rounded-lg border border-zinc-800 bg-zinc-950/80 shrink-0"
-                title="Kolumny z oznaczeniem TX to dni emisji programu (wg harmonogramu)"
+                title="Columns marked TX are programme broadcast days (from database)"
               >
-                <span className="font-black text-violet-300">TX</span> = dzień emisji programu
+                <span className="font-black text-violet-300">TX</span> = programme air day
               </span>
 
               <div className="flex flex-wrap items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 max-w-full">

@@ -256,7 +256,7 @@ export function AdPreviewModal({
                 className="w-full h-full object-contain"
               />
               <span className="absolute top-3 left-3 bg-black/80 font-mono text-[11px] text-zinc-300 px-2 py-1 rounded-md border border-white/10">
-                Klatka kluczowa z emisji
+                On-air frame grab
               </span>
             </div>
           )}

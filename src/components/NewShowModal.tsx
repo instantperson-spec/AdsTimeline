@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { X, Tv, Check } from 'lucide-react';
 import { CommercialShow } from '@/types/timeline';
+import { BroadcastWeekdayPicker } from '@/components/BroadcastWeekdayPicker';
 
 interface NewShowModalProps {
   isOpen: boolean;
@@ -16,7 +17,8 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
   const [channel, setChannel] = useState('Faith World TV');
-  const [broadcastSchedule, setBroadcastSchedule] = useState('Wednesdays — Faith World TV');
+  const [broadcastSchedule, setBroadcastSchedule] = useState('Wednesdays 22:00 GMT — Faith World TV');
+  const [broadcastWeekdays, setBroadcastWeekdays] = useState<number[]>([3]);
   const [breakCount, setBreakCount] = useState(3);
   const [color, setColor] = useState<'emerald' | 'amber' | 'cyan' | 'purple' | 'rose' | 'indigo'>('emerald');
   const [description, setDescription] = useState('');
@@ -39,6 +41,7 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (broadcastWeekdays.length === 0) return;
 
     const newShow: CommercialShow = {
       id: `show-${Date.now()}`,
@@ -46,6 +49,7 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
       code: code.trim().toUpperCase() || title.substring(0, 4).toUpperCase(),
       channel: channel.trim() || 'Broadcast TV',
       broadcastSchedule: broadcastSchedule.trim() || 'Weekly',
+      broadcastWeekdays,
       breakCount: Number(breakCount) || 3,
       color,
       description: description.trim() || undefined,
@@ -59,6 +63,8 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
     setTitle('');
     setCode('');
     setDescription('');
+    setBroadcastWeekdays([3]);
+    setBroadcastSchedule('Wednesdays 22:00 GMT — Faith World TV');
   };
 
   return (
@@ -157,13 +163,20 @@ export function NewShowModal({ isOpen, onClose, onCreateShow }: NewShowModalProp
 
           <div>
             <label className="block text-zinc-300 font-semibold mb-1">
-              Broadcast slot / day & time
+              Broadcast days (TX on timeline) *
+            </label>
+            <BroadcastWeekdayPicker value={broadcastWeekdays} onChange={setBroadcastWeekdays} />
+          </div>
+
+          <div>
+            <label className="block text-zinc-300 font-semibold mb-1">
+              Air time / slot (display text)
             </label>
             <input
               type="text"
               value={broadcastSchedule}
               onChange={(e) => setBroadcastSchedule(e.target.value)}
-              placeholder="e.g. Wednesdays — Faith World TV"
+              placeholder="e.g. Wednesdays 22:00 GMT — Faith World TV"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
             />
           </div>

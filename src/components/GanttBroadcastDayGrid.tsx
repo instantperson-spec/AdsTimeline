@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { parseBroadcastWeekdays, showBroadcastColumnClass } from '@/lib/broadcast-schedule';
+import { showBroadcastColumnClass } from '@/lib/broadcast-schedule';
+import { getShowBroadcastWeekdays } from '@/lib/show-broadcast';
 import type { CommercialShow } from '@/types/timeline';
 
 export type GanttDayColumn = {
@@ -76,7 +77,7 @@ export function GanttShowBroadcastOverlay({
   dayWidth: number;
   show: CommercialShow;
 }) {
-  const txSet = new Set(parseBroadcastWeekdays(show.broadcastSchedule));
+  const txSet = new Set(getShowBroadcastWeekdays(show));
   if (txSet.size === 0) return null;
 
   return (

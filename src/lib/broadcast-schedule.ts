@@ -1,40 +1,21 @@
 import type { CommercialShow } from '@/types/timeline';
+import { getShowBroadcastWeekdays, parseBroadcastWeekdays } from '@/lib/show-broadcast';
 
-/** JS Date.getDay(): 0 = Sun … 6 = Sat */
-const WEEKDAY_ALIASES: { pattern: RegExp; day: number }[] = [
-  { pattern: /\bsundays?\b/i, day: 0 },
-  { pattern: /\bmondays?\b/i, day: 1 },
-  { pattern: /\btuesdays?\b/i, day: 2 },
-  { pattern: /\bwednesdays?\b/i, day: 3 },
-  { pattern: /\bthursdays?\b/i, day: 4 },
-  { pattern: /\bfridays?\b/i, day: 5 },
-  { pattern: /\bsaturdays?\b/i, day: 6 },
-  { pattern: /\bniedziel\w*\b/i, day: 0 },
-  { pattern: /\bponiedział\w*|\bponiedziale\w*\b/i, day: 1 },
-  { pattern: /\bwtork\w*\b/i, day: 2 },
-  { pattern: /\bśrod\w*|\bsrod\w*\b/i, day: 3 },
-  { pattern: /\bczwart\w*\b/i, day: 4 },
-  { pattern: /\bpiątk\w*|\bpiatek\w*\b/i, day: 5 },
-  { pattern: /\bsobot\w*\b/i, day: 6 },
-];
+export { parseBroadcastWeekdays };
 
-export function parseBroadcastWeekdays(broadcastSchedule: string): number[] {
-  if (!broadcastSchedule.trim()) return [];
-  const found = new Set<number>();
-  for (const { pattern, day } of WEEKDAY_ALIASES) {
-    if (pattern.test(broadcastSchedule)) found.add(day);
-  }
-  return [...found].sort((a, b) => a - b);
+export function isBroadcastDayOfWeek(
+  dayOfWeek: number,
+  show: Pick<CommercialShow, 'broadcastWeekdays' | 'broadcastSchedule'>
+): boolean {
+  return getShowBroadcastWeekdays(show).includes(dayOfWeek);
 }
 
-export function isBroadcastDayOfWeek(dayOfWeek: number, broadcastSchedule: string): boolean {
-  return parseBroadcastWeekdays(broadcastSchedule).includes(dayOfWeek);
-}
-
-export function unionBroadcastWeekdays(shows: Pick<CommercialShow, 'broadcastSchedule'>[]): number[] {
+export function unionBroadcastWeekdays(
+  shows: Pick<CommercialShow, 'broadcastWeekdays' | 'broadcastSchedule'>[]
+): number[] {
   const set = new Set<number>();
   for (const show of shows) {
-    for (const d of parseBroadcastWeekdays(show.broadcastSchedule)) set.add(d);
+    for (const d of getShowBroadcastWeekdays(show)) set.add(d);
   }
   return [...set].sort((a, b) => a - b);
 }

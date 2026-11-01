@@ -531,7 +531,7 @@ export function TimelineGanttView({
                                         key={idx}
                                         style={{ width: `${dayWidth}px` }}
                                         className={`shrink-0 border-r border-zinc-850/30 ${
-                                          isBroadcastDayOfWeek(day.dayOfWeek, show.broadcastSchedule)
+                                          isBroadcastDayOfWeek(day.dayOfWeek, show)
                                             ? showBroadcastColumnClass(show.color, true)
                                             : day.isToday
                                             ? 'bg-amber-400/5'

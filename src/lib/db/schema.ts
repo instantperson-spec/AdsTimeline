@@ -41,4 +41,9 @@ export async function ensureSchema(sql: Sql) {
   `;
 
   await sql`CREATE INDEX IF NOT EXISTS ads_show_id_idx ON ads (show_id)`;
+
+  await sql`
+    ALTER TABLE shows
+    ADD COLUMN IF NOT EXISTS broadcast_weekdays JSONB NOT NULL DEFAULT '[]'::jsonb
+  `;
 }

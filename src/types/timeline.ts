@@ -37,7 +37,9 @@ export interface CommercialShow {
   title: string;
   code: string;
   channel: string;            // e.g. "Faith World TV"
-  broadcastSchedule: string;  // e.g. "Wednesdays 22:00 GMT — Faith World TV"
+  broadcastSchedule: string;  // Human-readable slot, e.g. "Wednesdays 22:00 GMT"
+  /** 0=Sun … 6=Sat — source of truth for TX columns on the Gantt. */
+  broadcastWeekdays: number[];
   breakCount: number;         // np. 3 przerwy reklamowe
   color: 'emerald' | 'amber' | 'cyan' | 'purple' | 'rose' | 'indigo';
   description?: string;
@@ -45,5 +47,5 @@ export interface CommercialShow {
 }
 
 /** Main admin navigation (left sidebar). */
-export type AdminNavView = 'cards' | 'gantt' | 'edit';
+export type AdminNavView = 'cards' | 'gantt' | 'programmes' | 'edit';
 
