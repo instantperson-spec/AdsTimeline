@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 import { Copy, ExternalLink, X, Check, LayoutList, GanttChart } from 'lucide-react';
 import { CommercialShow } from '@/types/timeline';
 import {
@@ -28,6 +29,7 @@ export function ClientLinkModal({
   const [listOn, setListOn] = useState(initialViews.includes('list'));
   const [timelineOn, setTimelineOn] = useState(initialViews.includes('timeline'));
   const [copied, setCopied] = useState(false);
+  const dialog = useAppDialog();
 
   useEffect(() => {
     if (isOpen) {
@@ -74,7 +76,12 @@ export function ClientLinkModal({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('Copy link:', absoluteUrl);
+      await dialog.prompt({
+        title: 'Copy client link',
+        message: 'Clipboard blocked — select the link below and copy manually (⌘C / Ctrl+C):',
+        defaultValue: absoluteUrl,
+        confirmLabel: 'Done',
+      });
     }
   };
 

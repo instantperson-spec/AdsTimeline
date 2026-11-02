@@ -27,8 +27,10 @@ import { NewAdModal } from '@/components/NewAdModal';
 import { NewShowModal } from '@/components/NewShowModal';
 import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 import { MediaLibraryPanel } from '@/components/MediaLibraryPanel';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 
 export default function AdsTimelineApp() {
+  const dialog = useAppDialog();
   const [shows, setShows] = useState<CommercialShow[]>([]);
   const [ads, setAds] = useState<CommercialAd[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('all');
@@ -198,18 +200,20 @@ export default function AdsTimelineApp() {
       (a) => a.showId === showId && a.breakNumber === sourceBreakNumber
     ).length;
     if (!show || count === 0) return;
-    if (
-      !confirm(
-        `Duplicate Break ${sourceBreakNumber} (${count} spot(s)) as a new Break ${show.breakCount + 1}?`
-      )
-    ) {
-      return;
-    }
+    const ok = await dialog.confirm({
+      title: 'Duplicate break',
+      message: `Duplicate Break ${sourceBreakNumber} (${count} spot(s)) as a new Break ${show.breakCount + 1}?`,
+      confirmLabel: 'Duplicate',
+    });
+    if (!ok) return;
     try {
       const data = await apiCopyBreak(showId, sourceBreakNumber, { mode: 'new_break' });
       applyTimelinePayload(data);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not duplicate break');
+      await dialog.alert({
+        title: 'Could not duplicate break',
+        message: e instanceof Error ? e.message : 'Something went wrong',
+      });
     }
   };
 
@@ -222,13 +226,12 @@ export default function AdsTimelineApp() {
       (a) => a.showId === showId && a.breakNumber === sourceBreakNumber
     ).length;
     if (count === 0) return;
-    if (
-      !confirm(
-        `Copy ${count} spot(s) from Break ${sourceBreakNumber} into Break ${targetBreakNumber}? New copies append after existing slots.`
-      )
-    ) {
-      return;
-    }
+    const ok = await dialog.confirm({
+      title: 'Copy break',
+      message: `Copy ${count} spot(s) from Break ${sourceBreakNumber} into Break ${targetBreakNumber}?\n\nNew copies append after existing slots.`,
+      confirmLabel: 'Copy spots',
+    });
+    if (!ok) return;
     try {
       const data = await apiCopyBreak(showId, sourceBreakNumber, {
         mode: 'break',
@@ -236,7 +239,10 @@ export default function AdsTimelineApp() {
       });
       applyTimelinePayload(data);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not copy break');
+      await dialog.alert({
+        title: 'Could not copy break',
+        message: e instanceof Error ? e.message : 'Something went wrong',
+      });
     }
   };
 
@@ -244,9 +250,13 @@ export default function AdsTimelineApp() {
     const show = shows.find((s) => s.id === showId);
     if (!show || show.breakCount <= 1) return;
 
-    if (!confirm(`Remove break ${breakNumber} and all its ads from "${show.title}"?`)) {
-      return;
-    }
+    const ok = await dialog.confirm({
+      title: 'Remove commercial break',
+      message: `Remove break ${breakNumber} and all its spots from "${show.title}"?`,
+      confirmLabel: 'Remove break',
+      tone: 'danger',
+    });
+    if (!ok) return;
 
     const data = await apiRemoveBreak(showId, breakNumber);
     applyTimelinePayload(data);

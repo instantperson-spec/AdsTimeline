@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 
 interface AdPreviewModalProps {
   ad: CommercialAd | null;
@@ -51,6 +52,7 @@ export function AdPreviewModal({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<'video' | 'frame'>('video');
+  const dialog = useAppDialog();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -373,10 +375,18 @@ export function AdPreviewModal({
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm(`Delete ad "${ad.title}" from the database?`)) {
-                    onDeleteAd(ad.id);
-                    onClose();
-                  }
+                  void (async () => {
+                    const ok = await dialog.confirm({
+                      title: 'Delete spot',
+                      message: `Delete "${ad.title}" from the database?`,
+                      confirmLabel: 'Delete',
+                      tone: 'danger',
+                    });
+                    if (ok) {
+                      onDeleteAd(ad.id);
+                      onClose();
+                    }
+                  })();
                 }}
                 className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 px-3 py-2 rounded-xl hover:bg-rose-950/40 transition-colors"
               >

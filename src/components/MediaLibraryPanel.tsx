@@ -15,6 +15,7 @@ import type { MediaAsset } from '@/types/media';
 import { apiDeleteMediaAsset, fetchMediaAssets } from '@/lib/timeline-api';
 import { createMediaAssetFromFiles } from '@/lib/media-client-upload';
 import { assetNeedsVideoThumbnail } from '@/lib/media-display';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 
 type KindFilter = 'all' | 'image_only' | 'video_and_poster';
 
@@ -30,6 +31,7 @@ export function MediaLibraryPanel() {
   const [compressWebVideo, setCompressWebVideo] = useState(true);
   const [preview, setPreview] = useState<MediaAsset | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const dialog = useAppDialog();
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -82,13 +84,13 @@ export function MediaLibraryPanel() {
   };
 
   const handleDelete = async (asset: MediaAsset) => {
-    if (
-      !confirm(
-        `Delete media "${asset.label}" from cloud storage? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
+    const ok = await dialog.confirm({
+      title: 'Delete media',
+      message: `Delete "${asset.label}" from cloud storage?\n\nThis cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setActionError(null);
     try {
       await apiDeleteMediaAsset(asset.id);

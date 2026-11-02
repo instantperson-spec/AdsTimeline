@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AdminNavView, CommercialShow } from '@/types/timeline';
 import { ClientLinkModal } from '@/components/ClientLinkModal';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 
 interface HeaderProps {
   shows: CommercialShow[];
@@ -40,6 +41,7 @@ export function Header({
   const currentShow = shows.find((s) => s.id === selectedShowId);
   const [clientLinkOpen, setClientLinkOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const dialog = useAppDialog();
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -173,9 +175,15 @@ export function Header({
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm(`Delete show "${show.title}" and all its ads?`)) {
-                          onDeleteShow(show.id);
-                        }
+                        void (async () => {
+                          const ok = await dialog.confirm({
+                            title: 'Delete programme',
+                            message: `Delete show "${show.title}" and all its spots?`,
+                            confirmLabel: 'Delete',
+                            tone: 'danger',
+                          });
+                          if (ok) onDeleteShow(show.id);
+                        })();
                       }}
                       className="p-2 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 border border-transparent hover:border-zinc-700"
                       title="Delete show"

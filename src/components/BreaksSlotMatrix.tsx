@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 
 interface BreaksSlotMatrixProps {
   ads: CommercialAd[];
@@ -57,6 +58,8 @@ export function BreaksSlotMatrix({
   onDuplicateBreak,
   onCopyBreakTo,
 }: BreaksSlotMatrixProps) {
+  const dialog = useAppDialog();
+
   // If 'all', render all shows; if specific show, render that show
   const activeShows = selectedShowId === 'all'
     ? shows
@@ -148,15 +151,24 @@ export function BreaksSlotMatrix({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const raw = prompt(
-                                    `Copy ${breakAds.length} spot(s) from Break ${breakNum} into break number (1–${show.breakCount}):`,
-                                    String(breakNum)
-                                  );
+                                onClick={async () => {
+                                  const raw = await dialog.prompt({
+                                    title: 'Copy to break',
+                                    message: `Copy ${breakAds.length} spot(s) from Break ${breakNum} into break number (1–${show.breakCount}):`,
+                                    defaultValue: String(breakNum),
+                                    confirmLabel: 'Copy',
+                                  });
                                   if (raw == null) return;
                                   const target = parseInt(raw, 10);
-                                  if (!Number.isFinite(target) || target < 1 || target > show.breakCount) {
-                                    alert(`Enter a break number between 1 and ${show.breakCount}.`);
+                                  if (
+                                    !Number.isFinite(target) ||
+                                    target < 1 ||
+                                    target > show.breakCount
+                                  ) {
+                                    await dialog.alert({
+                                      title: 'Invalid break number',
+                                      message: `Enter a break number between 1 and ${show.breakCount}.`,
+                                    });
                                     return;
                                   }
                                   onCopyBreakTo(show.id, breakNum, target);
@@ -342,9 +354,15 @@ export function BreaksSlotMatrix({
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm(`Delete spot "${ad.title}"?`)) {
-                                          onDeleteAd(ad.id);
-                                        }
+                                        void (async () => {
+                                          const ok = await dialog.confirm({
+                                            title: 'Delete spot',
+                                            message: `Delete spot "${ad.title}"?`,
+                                            confirmLabel: 'Delete',
+                                            tone: 'danger',
+                                          });
+                                          if (ok) onDeleteAd(ad.id);
+                                        })();
                                       }}
                                       className="text-zinc-500 hover:text-rose-400 p-0.5"
                                       title="Delete ad"

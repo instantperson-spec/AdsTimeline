@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 import { Radio, Save, Loader2, Plus, Trash2, Tv } from 'lucide-react';
 import type { CommercialShow } from '@/types/timeline';
 import { BroadcastWeekdayPicker } from '@/components/BroadcastWeekdayPicker';
@@ -80,6 +81,7 @@ export function ShowProgrammesPanel({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dialog = useAppDialog();
 
   useEffect(() => {
     const next: Record<string, Draft> = {};
@@ -130,13 +132,13 @@ export function ShowProgrammesPanel({
   const handleDelete = async (show: CommercialShow) => {
     const d = drafts[show.id];
     const label = d?.title.trim() || show.title;
-    if (
-      !confirm(
-        `Delete programme "${label}" and all of its commercial spots from the database? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
+    const ok = await dialog.confirm({
+      title: 'Delete programme',
+      message: `Delete programme "${label}" and all of its commercial spots?\n\nThis cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError(null);
     setDeletingId(show.id);
     try {
