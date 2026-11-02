@@ -29,7 +29,6 @@ export function MoveBreakModal({
   onConfirm,
   busy = false,
 }: MoveBreakModalProps) {
-  const dialogRef = React.useRef<HTMLDialogElement | null>(null);
   const sourceShow = shows.find((s) => s.id === request?.sourceShowId);
   const [targetShowId, setTargetShowId] = useState('');
   const [targetBreakNumber, setTargetBreakNumber] = useState(1);
@@ -37,17 +36,11 @@ export function MoveBreakModal({
   const targetShow = shows.find((s) => s.id === targetShowId);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (isOpen && request) {
-      if (!dialog.open) dialog.showModal();
-      const defaultTarget = shows.find((s) => s.id !== request.sourceShowId) ?? shows[0];
-      setTargetShowId(defaultTarget?.id ?? '');
-      setTargetBreakNumber(1);
-    } else if (dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen, request, shows]);
+    if (!isOpen || !request) return;
+    const defaultTarget = shows.find((s) => s.id !== request.sourceShowId) ?? shows[0];
+    setTargetShowId(defaultTarget?.id ?? '');
+    setTargetBreakNumber(1);
+  }, [isOpen, request?.sourceShowId, request?.sourceBreakNumber, shows]);
 
   const breakOptions = useMemo(() => {
     const count = targetShow?.breakCount ?? 1;
@@ -60,20 +53,30 @@ export function MoveBreakModal({
     }
   }, [breakOptions.length, targetBreakNumber]);
 
-  if (!request || !sourceShow) return null;
+  if (!isOpen || !request || !sourceShow) return null;
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="backdrop:bg-black/80 backdrop:backdrop-blur-sm bg-transparent p-0 m-auto max-w-md w-full focus:outline-none"
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) onClose();
+      }}
     >
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-5 text-zinc-100">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="move-break-title"
+        className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-5 text-zinc-100"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <ArrowRightLeft className="w-5 h-5 text-indigo-400 shrink-0" />
             <div>
-              <h2 className="text-base font-bold text-white">Move break to programme</h2>
+              <h2 id="move-break-title" className="text-base font-bold text-white">
+                Move break to programme
+              </h2>
               <p className="text-xs text-zinc-400 mt-0.5">
                 All {request.spotCount} spot(s) leave{' '}
                 <span className="text-zinc-200">{sourceShow.title}</span> · Break{' '}
@@ -84,7 +87,8 @@ export function MoveBreakModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400"
+            disabled={busy}
+            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -98,7 +102,8 @@ export function MoveBreakModal({
             <select
               value={targetShowId}
               onChange={(e) => setTargetShowId(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-indigo-500"
+              disabled={busy}
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-indigo-500 disabled:opacity-60"
             >
               {shows.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -114,7 +119,8 @@ export function MoveBreakModal({
             <select
               value={targetBreakNumber}
               onChange={(e) => setTargetBreakNumber(parseInt(e.target.value, 10))}
-              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 font-mono text-zinc-100 focus:outline-none focus:border-indigo-500"
+              disabled={busy}
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 font-mono text-zinc-100 focus:outline-none focus:border-indigo-500 disabled:opacity-60"
             >
               {breakOptions.map((n) => (
                 <option key={n} value={n}>
@@ -134,7 +140,7 @@ export function MoveBreakModal({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-zinc-300 hover:bg-zinc-800"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -154,6 +160,6 @@ export function MoveBreakModal({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }

@@ -269,6 +269,12 @@ export default function AdsTimelineApp() {
     const targetShow = shows.find((s) => s.id === req.targetShowId);
     if (!sourceShow || !targetShow) return;
 
+    // Close move modal before confirm — native/fixed stacking was hiding AppDialog underneath.
+    setMoveBreakRequest(null);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
     const ok = await dialog.confirm({
       title: 'Move entire break',
       message: `Move ${req.spotCount} spot(s) from "${sourceShow.title}" Break ${req.sourceBreakNumber} to "${targetShow.title}" Break ${req.targetBreakNumber}?`,
@@ -285,7 +291,6 @@ export default function AdsTimelineApp() {
         req.targetBreakNumber
       );
       applyTimelinePayload(data);
-      setMoveBreakRequest(null);
     } catch (e) {
       await dialog.alert({
         title: 'Could not move break',

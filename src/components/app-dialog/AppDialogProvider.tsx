@@ -175,7 +175,7 @@ export function AppDialogProvider({ children }: { children: React.ReactNode }) {
 
       {active && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
