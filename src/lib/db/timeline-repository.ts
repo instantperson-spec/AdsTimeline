@@ -6,6 +6,7 @@ import { mapAdRow, mapShowRow, type AdRow, type ShowRow } from '@/lib/db/mappers
 import { STORED_AD_CATEGORY } from '@/lib/db/stored-ad-category';
 import { parseBroadcastWeekdaysFromDb, parseBroadcastWeekdays } from '@/lib/show-broadcast';
 import { runLegacyMediaBackfill } from '@/lib/legacy-media-backfill';
+import { computeAdStatus } from '@/lib/date-utils';
 
 async function backfillShowBroadcastWeekdays(sql: ReturnType<typeof getSql>): Promise<void> {
   const rows = await sql`
@@ -191,6 +192,111 @@ export async function removeBreakFromShow(
   const current = (showRows[0]?.break_count as number | undefined) ?? 1;
   if (current > 1) {
     await sql`UPDATE shows SET break_count = ${current - 1} WHERE id = ${showId}`;
+  }
+
+  return fetchTimeline();
+}
+
+export async function reorderBreakSlots(
+  showId: string,
+  breakNumber: number,
+  orderedAdIds: string[]
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  await initTimelineData();
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT id FROM ads
+    WHERE show_id = ${showId} AND break_number = ${breakNumber}
+    ORDER BY slot_index ASC, created_at ASC
+  `;
+  const existingIds = rows.map((r) => (r as { id: string }).id);
+
+  if (orderedAdIds.length !== existingIds.length) {
+    throw new Error('Reorder list must include every spot in the break');
+  }
+  const existingSet = new Set(existingIds);
+  for (const id of orderedAdIds) {
+    if (!existingSet.has(id)) {
+      throw new Error('Invalid spot id for this break');
+    }
+  }
+
+  for (let i = 0; i < orderedAdIds.length; i++) {
+    await sql`
+      UPDATE ads SET slot_index = ${i + 1}, updated_at = NOW()
+      WHERE id = ${orderedAdIds[i]}
+    `;
+  }
+
+  return fetchTimeline();
+}
+
+function cloneAdForBreakCopy(
+  source: CommercialAd,
+  breakNumber: number,
+  slotIndex: number
+): CommercialAd {
+  const now = new Date().toISOString();
+  const clone: CommercialAd = {
+    ...source,
+    id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    breakNumber,
+    slotIndex,
+    takenOffAt: undefined,
+    replacementAdTitle: undefined,
+    createdAt: now,
+    updatedAt: now,
+    status: 'active',
+  };
+  return { ...clone, status: computeAdStatus(clone) };
+}
+
+export type CopyBreakTarget = { mode: 'new_break' } | { mode: 'break'; breakNumber: number };
+
+export async function copyCommercialBreak(
+  showId: string,
+  sourceBreakNumber: number,
+  target: CopyBreakTarget
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  await initTimelineData();
+  const { ads: allAds, shows } = await fetchTimeline();
+  const show = shows.find((s) => s.id === showId);
+  if (!show) throw new Error('Show not found');
+
+  const sourceAds = allAds
+    .filter((a) => a.showId === showId && a.breakNumber === sourceBreakNumber)
+    .sort((a, b) => a.slotIndex - b.slotIndex || a.createdAt.localeCompare(b.createdAt));
+
+  if (sourceAds.length === 0) {
+    throw new Error('Source break has no spots to copy');
+  }
+
+  let targetBreakNumber: number;
+
+  if (target.mode === 'new_break') {
+    if (show.breakCount >= 6) {
+      throw new Error('Maximum 6 commercial breaks per programme');
+    }
+    targetBreakNumber = show.breakCount + 1;
+    await updateShowBreakCount(showId, targetBreakNumber);
+  } else {
+    if (target.breakNumber < 1 || target.breakNumber > show.breakCount) {
+      throw new Error('Target break number is out of range');
+    }
+    targetBreakNumber = target.breakNumber;
+  }
+
+  const targetAds = allAds.filter(
+    (a) => a.showId === showId && a.breakNumber === targetBreakNumber
+  );
+  let nextSlot =
+    targetAds.length > 0 ? Math.max(...targetAds.map((a) => a.slotIndex)) + 1 : 1;
+
+  for (const source of sourceAds) {
+    const clone = cloneAdForBreakCopy(source, targetBreakNumber, nextSlot);
+    await insertAd(clone);
+    nextSlot += 1;
   }
 
   return fetchTimeline();

@@ -73,6 +73,32 @@ export async function apiRemoveBreak(
   return parseJson(res);
 }
 
+export async function apiReorderBreak(
+  showId: string,
+  breakNumber: number,
+  orderedAdIds: string[]
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  const res = await fetch(`/api/shows/${encodeURIComponent(showId)}/reorder-break`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ breakNumber, orderedAdIds }),
+  });
+  return parseJson(res);
+}
+
+export async function apiCopyBreak(
+  showId: string,
+  sourceBreakNumber: number,
+  target: { mode: 'new_break' } | { mode: 'break'; breakNumber: number }
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  const res = await fetch(`/api/shows/${encodeURIComponent(showId)}/copy-break`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sourceBreakNumber, target }),
+  });
+  return parseJson(res);
+}
+
 export async function apiCreateAd(ad: CommercialAd): Promise<CommercialAd> {
   const res = await fetch('/api/ads', {
     method: 'POST',

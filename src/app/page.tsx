@@ -10,6 +10,8 @@ import {
   apiUpdateShow,
   apiUpdateShowBreakCount,
   apiRemoveBreak,
+  apiReorderBreak,
+  apiCopyBreak,
   apiCreateAd,
   apiUpdateAd,
   apiDeleteAd,
@@ -162,6 +164,82 @@ export default function AdsTimelineApp() {
     );
   };
 
+  const applyTimelinePayload = (data: { shows: CommercialShow[]; ads: CommercialAd[] }) => {
+    setShows(data.shows);
+    setAds(data.ads.map((ad) => ({ ...ad, status: computeAdStatus(ad) })));
+  };
+
+  const handleMoveSpot = async (
+    showId: string,
+    breakNumber: number,
+    adId: string,
+    direction: 'up' | 'down'
+  ) => {
+    const breakAds = ads
+      .filter((a) => a.showId === showId && a.breakNumber === breakNumber)
+      .sort(
+        (a, b) => a.slotIndex - b.slotIndex || a.createdAt.localeCompare(b.createdAt)
+      );
+    const idx = breakAds.findIndex((a) => a.id === adId);
+    if (idx < 0) return;
+    const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= breakAds.length) return;
+
+    const ordered = breakAds.map((a) => a.id);
+    [ordered[idx], ordered[swapWith]] = [ordered[swapWith], ordered[idx]];
+
+    const data = await apiReorderBreak(showId, breakNumber, ordered);
+    applyTimelinePayload(data);
+  };
+
+  const handleDuplicateBreak = async (showId: string, sourceBreakNumber: number) => {
+    const show = shows.find((s) => s.id === showId);
+    const count = ads.filter(
+      (a) => a.showId === showId && a.breakNumber === sourceBreakNumber
+    ).length;
+    if (!show || count === 0) return;
+    if (
+      !confirm(
+        `Duplicate Break ${sourceBreakNumber} (${count} spot(s)) as a new Break ${show.breakCount + 1}?`
+      )
+    ) {
+      return;
+    }
+    try {
+      const data = await apiCopyBreak(showId, sourceBreakNumber, { mode: 'new_break' });
+      applyTimelinePayload(data);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not duplicate break');
+    }
+  };
+
+  const handleCopyBreakTo = async (
+    showId: string,
+    sourceBreakNumber: number,
+    targetBreakNumber: number
+  ) => {
+    const count = ads.filter(
+      (a) => a.showId === showId && a.breakNumber === sourceBreakNumber
+    ).length;
+    if (count === 0) return;
+    if (
+      !confirm(
+        `Copy ${count} spot(s) from Break ${sourceBreakNumber} into Break ${targetBreakNumber}? New copies append after existing slots.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const data = await apiCopyBreak(showId, sourceBreakNumber, {
+        mode: 'break',
+        breakNumber: targetBreakNumber,
+      });
+      applyTimelinePayload(data);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not copy break');
+    }
+  };
+
   const handleRemoveBreak = async (showId: string, breakNumber: number) => {
     const show = shows.find((s) => s.id === showId);
     if (!show || show.breakCount <= 1) return;
@@ -171,8 +249,7 @@ export default function AdsTimelineApp() {
     }
 
     const data = await apiRemoveBreak(showId, breakNumber);
-    setShows(data.shows);
-    setAds(data.ads.map((ad) => ({ ...ad, status: computeAdStatus(ad) })));
+    applyTimelinePayload(data);
   };
 
   const expiredCount = ads.filter((a) => !a.takenOffAt && a.status === 'expired').length;
@@ -265,6 +342,9 @@ export default function AdsTimelineApp() {
               onDeleteAd={handleDeleteAd}
               onTakeOffAd={handleTakeOffAd}
               onRestoreAd={handleRestoreAd}
+              onMoveSpot={handleMoveSpot}
+              onDuplicateBreak={handleDuplicateBreak}
+              onCopyBreakTo={handleCopyBreakTo}
             />
           )}
         </main>
@@ -285,6 +365,7 @@ export default function AdsTimelineApp() {
         isOpen={isNewAdOpen}
         onClose={closeAdModal}
         shows={shows}
+        ads={ads}
         initialShowId={newAdShowId}
         initialBreakNumber={newAdBreakNumber}
         editAd={editingAd}

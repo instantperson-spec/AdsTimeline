@@ -14,6 +14,9 @@ import {
   Film,
   Trash2,
   RotateCcw,
+  ChevronUp,
+  ChevronDown,
+  Copy,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
@@ -29,6 +32,14 @@ interface BreaksSlotMatrixProps {
   onDeleteAd: (adId: string) => void;
   onTakeOffAd: (adId: string) => void;
   onRestoreAd: (adId: string) => void;
+  onMoveSpot: (
+    showId: string,
+    breakNumber: number,
+    adId: string,
+    direction: 'up' | 'down'
+  ) => void;
+  onDuplicateBreak: (showId: string, sourceBreakNumber: number) => void;
+  onCopyBreakTo: (showId: string, sourceBreakNumber: number, targetBreakNumber: number) => void;
 }
 
 export function BreaksSlotMatrix({
@@ -42,6 +53,9 @@ export function BreaksSlotMatrix({
   onDeleteAd,
   onTakeOffAd,
   onRestoreAd,
+  onMoveSpot,
+  onDuplicateBreak,
+  onCopyBreakTo,
 }: BreaksSlotMatrixProps) {
   // If 'all', render all shows; if specific show, render that show
   const activeShows = selectedShowId === 'all'
@@ -90,9 +104,12 @@ export function BreaksSlotMatrix({
             {/* Breaks Columns / Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {breakNumbers.map((breakNum) => {
-                const breakAds = ads.filter(
-                  (a) => a.showId === show.id && a.breakNumber === breakNum
-                );
+                const breakAds = ads
+                  .filter((a) => a.showId === show.id && a.breakNumber === breakNum)
+                  .sort(
+                    (a, b) =>
+                      a.slotIndex - b.slotIndex || a.createdAt.localeCompare(b.createdAt)
+                  );
 
                 const totalDuration = breakAds.reduce((acc, a) => acc + a.durationSec, 0);
 
@@ -114,6 +131,43 @@ export function BreaksSlotMatrix({
                           <span className="text-[11px] font-mono text-zinc-400 mr-1">
                             {totalDuration}s total
                           </span>
+                          {breakAds.length > 0 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onDuplicateBreak(show.id, breakNum)}
+                                disabled={show.breakCount >= 6}
+                                className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={
+                                  show.breakCount >= 6
+                                    ? 'Max 6 breaks — copy into another break instead'
+                                    : 'Duplicate all spots to a new break at the end'
+                                }
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const raw = prompt(
+                                    `Copy ${breakAds.length} spot(s) from Break ${breakNum} into break number (1–${show.breakCount}):`,
+                                    String(breakNum)
+                                  );
+                                  if (raw == null) return;
+                                  const target = parseInt(raw, 10);
+                                  if (!Number.isFinite(target) || target < 1 || target > show.breakCount) {
+                                    alert(`Enter a break number between 1 and ${show.breakCount}.`);
+                                    return;
+                                  }
+                                  onCopyBreakTo(show.id, breakNum, target);
+                                }}
+                                className="px-1.5 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-semibold text-zinc-300 hover:text-white"
+                                title="Copy all spots into another break (appends to existing slots)"
+                              >
+                                Copy to…
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
                             onClick={() => onOpenNewAdForBreak(show.id, breakNum)}
@@ -180,7 +234,7 @@ export function BreaksSlotMatrix({
                                   {/* Slot tag & Expiration pill */}
                                   <div className="flex items-center justify-between mb-2">
                                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-850 text-zinc-400">
-                                      Spot #{idx + 1} &bull; {ad.durationSec}s
+                                      Slot #{ad.slotIndex} &bull; {ad.durationSec}s
                                     </span>
                                     <span
                                       className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold border ${daysInfo.badgeClass}`}
@@ -232,6 +286,32 @@ export function BreaksSlotMatrix({
                                   </span>
 
                                   <div className="flex items-center space-x-2">
+                                    <div className="flex flex-col -my-0.5 mr-1">
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onMoveSpot(show.id, breakNum, ad.id, 'up');
+                                        }}
+                                        className="p-0.5 text-zinc-500 hover:text-indigo-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Move spot up in break"
+                                      >
+                                        <ChevronUp className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === breakAds.length - 1}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onMoveSpot(show.id, breakNum, ad.id, 'down');
+                                        }}
+                                        className="p-0.5 text-zinc-500 hover:text-indigo-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Move spot down in break"
+                                      >
+                                        <ChevronDown className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                     {isTakenOff ? (
                                       <button
                                         type="button"

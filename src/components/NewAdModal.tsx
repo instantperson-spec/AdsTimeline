@@ -16,6 +16,8 @@ interface NewAdModalProps {
   shows: CommercialShow[];
   initialShowId?: string;
   initialBreakNumber?: number;
+  /** Used to suggest the next slot index when adding a spot. */
+  ads?: CommercialAd[];
   editAd?: CommercialAd | null;
   onCreateAd: (ad: CommercialAd) => void | Promise<void>;
   onUpdateAd?: (ad: CommercialAd) => void | Promise<void>;
@@ -27,6 +29,7 @@ export function NewAdModal({
   shows,
   initialShowId,
   initialBreakNumber,
+  ads = [],
   editAd,
   onCreateAd,
   onUpdateAd,
@@ -84,7 +87,14 @@ export function NewAdModal({
 
     if (initialShowId) setShowId(initialShowId);
     if (initialBreakNumber) setBreakNumber(initialBreakNumber);
-  }, [isOpen, editAd, initialShowId, initialBreakNumber]);
+
+    const sid = initialShowId || showId || shows[0]?.id || '';
+    const bnum = initialBreakNumber || breakNumber || 1;
+    const inBreak = ads.filter((a) => a.showId === sid && a.breakNumber === bnum);
+    const nextSlot =
+      inBreak.length > 0 ? Math.max(...inBreak.map((a) => a.slotIndex)) + 1 : 1;
+    setSlotIndex(nextSlot);
+  }, [isOpen, editAd, initialShowId, initialBreakNumber, ads, showId, breakNumber, shows]);
 
   useEffect(() => {
     if (!isOpen) return;
