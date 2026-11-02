@@ -62,6 +62,7 @@ export function AdPreviewModal({
       }
       setIsPlaying(false);
       setCurrentTime(0);
+      setActiveMediaTab(ad.videoUrl ? 'video' : 'frame');
     } else {
       if (dialog.open) {
         dialog.close();
@@ -262,7 +263,7 @@ export function AdPreviewModal({
           )}
         </div>
 
-        {!isClientView && (
+        {!isClientView && ad.videoUrl && (
           <div className="bg-zinc-950 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <button
@@ -275,7 +276,7 @@ export function AdPreviewModal({
                 }`}
               >
                 <Film className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Video preview (HD H.264)</span>
+                <span>Video preview</span>
               </button>
 
               <button
@@ -291,10 +292,6 @@ export function AdPreviewModal({
                 <span>Frame grab</span>
               </button>
             </div>
-
-            <span className="text-[11px] text-zinc-500 font-mono">
-              Format: 1080p 25fps Stereo
-            </span>
           </div>
         )}
 

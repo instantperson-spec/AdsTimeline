@@ -24,6 +24,7 @@ import { AdPreviewModal } from '@/components/AdPreviewModal';
 import { NewAdModal } from '@/components/NewAdModal';
 import { NewShowModal } from '@/components/NewShowModal';
 import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
+import { MediaLibraryPanel } from '@/components/MediaLibraryPanel';
 
 export default function AdsTimelineApp() {
   const [shows, setShows] = useState<CommercialShow[]>([]);
@@ -249,6 +250,8 @@ export default function AdsTimelineApp() {
               onOpenNewShow={() => setIsNewShowOpen(true)}
             />
           )}
+
+          {adminView === 'media' && <MediaLibraryPanel />}
 
           {adminView === 'edit' && (
             <BreaksSlotMatrix

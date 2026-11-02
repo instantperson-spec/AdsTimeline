@@ -1,4 +1,5 @@
 import { CommercialAd, CommercialShow, AdStatus } from '@/types/timeline';
+import type { MediaAssetKind } from '@/types/media';
 import { computeAdStatus } from '@/lib/date-utils';
 import { parseBroadcastWeekdaysFromDb, parseBroadcastWeekdays } from '@/lib/show-broadcast';
 
@@ -35,6 +36,10 @@ export type AdRow = {
   notes: string | null;
   taken_off_at: string | Date | null;
   replacement_ad_title: string | null;
+  media_asset_id: string | null;
+  media_kind?: string | null;
+  media_poster_url?: string | null;
+  media_video_url?: string | null;
   created_at: string | Date;
   updated_at: string | Date;
 };
@@ -81,8 +86,10 @@ export function mapAdRow(row: AdRow): CommercialAd {
     durationSec: row.duration_sec,
     startDate: toIsoDate(row.start_date),
     endDate: toIsoDate(row.end_date),
-    frameGrabUrl: row.frame_grab_url,
-    videoUrl: row.video_url ?? undefined,
+    frameGrabUrl: row.media_poster_url ?? row.frame_grab_url,
+    videoUrl: (row.media_video_url ?? row.video_url) ?? undefined,
+    mediaAssetId: row.media_asset_id ?? undefined,
+    mediaKind: (row.media_kind as MediaAssetKind | null | undefined) ?? undefined,
     isTimeSensitive: row.is_time_sensitive,
     eventDate: row.event_date ?? undefined,
     replacementAction: row.replacement_action,

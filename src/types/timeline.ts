@@ -1,3 +1,5 @@
+import type { MediaAssetKind } from '@/types/media';
+
 export type AdStatus =
   | 'active'        // Currently running on air and safe
   | 'expiring_soon' // Within 3-7 days of expiry deadline (Amber alert)
@@ -18,8 +20,13 @@ export interface CommercialAd {
   startDate: string;
   /** On-air until / pull-by (time-sensitive flights only). */
   endDate: string;
+  /** Resolved poster URL (from media asset or legacy column). */
   frameGrabUrl: string;
-  videoUrl?: string;   // optional 20–30s H.264 preview
+  /** Resolved preview video URL when asset has MP4. */
+  videoUrl?: string;
+  /** Shared cloud media; slot may reuse the same asset across breaks. */
+  mediaAssetId?: string;
+  mediaKind?: MediaAssetKind;
   /** true = dated flight (e.g. tour 4 Jan–7 Mar). false = permanent / recurrent sponsor spot. */
   isTimeSensitive: boolean;
   eventDate?: string;
@@ -47,5 +54,5 @@ export interface CommercialShow {
 }
 
 /** Main admin navigation (left sidebar). */
-export type AdminNavView = 'cards' | 'gantt' | 'programmes' | 'edit';
+export type AdminNavView = 'cards' | 'gantt' | 'programmes' | 'edit' | 'media';
 

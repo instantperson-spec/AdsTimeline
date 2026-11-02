@@ -1,4 +1,5 @@
 import { CommercialAd, CommercialShow } from '@/types/timeline';
+import type { MediaAsset } from '@/types/media';
 
 async function parseJson<T>(res: Response): Promise<T> {
   const data = await res.json();
@@ -95,9 +96,30 @@ export async function apiDeleteAd(adId: string): Promise<void> {
   await parseJson(res);
 }
 
+/** @deprecated Prefer createMediaAssetFromFiles — keeps assets in the media library. */
 export async function uploadMediaFile(file: File): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append('file', file);
   const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
+  return parseJson(res);
+}
+
+export async function fetchMediaAssets(): Promise<MediaAsset[]> {
+  const res = await fetch('/api/media', { cache: 'no-store' });
+  const data = await parseJson<{ items: MediaAsset[] }>(res);
+  return data.items;
+}
+
+export async function apiDeleteMediaAsset(id: string): Promise<void> {
+  const res = await fetch(`/api/media/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  await parseJson(res);
+}
+
+export async function apiUpdateMediaLabel(id: string, label: string): Promise<MediaAsset> {
+  const res = await fetch(`/api/media/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
   return parseJson(res);
 }

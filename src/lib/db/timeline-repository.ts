@@ -68,9 +68,15 @@ export async function fetchTimeline(): Promise<{ shows: CommercialShow[]; ads: C
   const sql = getSql();
   const showRows = await sql`SELECT * FROM shows ORDER BY created_at ASC`;
   const adRows = await sql`
-    SELECT a.*, s.title AS show_title
+    SELECT
+      a.*,
+      s.title AS show_title,
+      m.kind AS media_kind,
+      m.poster_url AS media_poster_url,
+      m.video_url AS media_video_url
     FROM ads a
     JOIN shows s ON s.id = a.show_id
+    LEFT JOIN media_assets m ON m.id = a.media_asset_id
     ORDER BY a.show_id, a.break_number, a.slot_index
   `;
 
@@ -188,13 +194,36 @@ export async function removeBreakFromShow(
   return fetchTimeline();
 }
 
+async function denormalizedMediaFields(
+  sql: ReturnType<typeof getSql>,
+  ad: CommercialAd
+): Promise<{ frameGrabUrl: string; videoUrl: string | null }> {
+  if (ad.mediaAssetId) {
+    const rows = await sql`
+      SELECT poster_url, video_url FROM media_assets WHERE id = ${ad.mediaAssetId}
+    `;
+    if (rows.length) {
+      const row = rows[0] as { poster_url: string; video_url: string | null };
+      return {
+        frameGrabUrl: row.poster_url,
+        videoUrl: row.video_url,
+      };
+    }
+  }
+  return {
+    frameGrabUrl: ad.frameGrabUrl,
+    videoUrl: ad.videoUrl ?? null,
+  };
+}
+
 export async function insertAd(ad: CommercialAd): Promise<CommercialAd> {
   await initTimelineData();
   const sql = getSql();
+  const mediaFields = await denormalizedMediaFields(sql, ad);
   await sql`
     INSERT INTO ads (
       id, show_id, break_number, slot_index, title, advertiser, category,
-      duration_sec, start_date, end_date, frame_grab_url, video_url,
+      duration_sec, start_date, end_date, frame_grab_url, video_url, media_asset_id,
       is_time_sensitive, event_date, replacement_action, notes,
       taken_off_at, replacement_ad_title, created_at, updated_at
     ) VALUES (
@@ -208,8 +237,9 @@ export async function insertAd(ad: CommercialAd): Promise<CommercialAd> {
       ${ad.durationSec},
       ${ad.startDate},
       ${ad.endDate},
-      ${ad.frameGrabUrl},
-      ${ad.videoUrl ?? null},
+      ${mediaFields.frameGrabUrl},
+      ${mediaFields.videoUrl},
+      ${ad.mediaAssetId ?? null},
       ${ad.isTimeSensitive},
       ${ad.eventDate ?? null},
       ${ad.replacementAction},
@@ -221,14 +251,23 @@ export async function insertAd(ad: CommercialAd): Promise<CommercialAd> {
     )
   `;
   const rows = await sql`
-    SELECT a.*, s.title AS show_title FROM ads a
-    JOIN shows s ON s.id = a.show_id WHERE a.id = ${ad.id}
+    SELECT
+      a.*,
+      s.title AS show_title,
+      m.kind AS media_kind,
+      m.poster_url AS media_poster_url,
+      m.video_url AS media_video_url
+    FROM ads a
+    JOIN shows s ON s.id = a.show_id
+    LEFT JOIN media_assets m ON m.id = a.media_asset_id
+    WHERE a.id = ${ad.id}
   `;
   return mapAdRow(rows[0] as AdRow);
 }
 
 export async function updateAd(ad: CommercialAd): Promise<CommercialAd> {
   const sql = getSql();
+  const mediaFields = await denormalizedMediaFields(sql, ad);
   await sql`
     UPDATE ads SET
       show_id = ${ad.showId},
@@ -240,8 +279,9 @@ export async function updateAd(ad: CommercialAd): Promise<CommercialAd> {
       duration_sec = ${ad.durationSec},
       start_date = ${ad.startDate},
       end_date = ${ad.endDate},
-      frame_grab_url = ${ad.frameGrabUrl},
-      video_url = ${ad.videoUrl ?? null},
+      frame_grab_url = ${mediaFields.frameGrabUrl},
+      video_url = ${mediaFields.videoUrl},
+      media_asset_id = ${ad.mediaAssetId ?? null},
       is_time_sensitive = ${ad.isTimeSensitive},
       event_date = ${ad.eventDate ?? null},
       replacement_action = ${ad.replacementAction},
@@ -252,8 +292,16 @@ export async function updateAd(ad: CommercialAd): Promise<CommercialAd> {
     WHERE id = ${ad.id}
   `;
   const rows = await sql`
-    SELECT a.*, s.title AS show_title FROM ads a
-    JOIN shows s ON s.id = a.show_id WHERE a.id = ${ad.id}
+    SELECT
+      a.*,
+      s.title AS show_title,
+      m.kind AS media_kind,
+      m.poster_url AS media_poster_url,
+      m.video_url AS media_video_url
+    FROM ads a
+    JOIN shows s ON s.id = a.show_id
+    LEFT JOIN media_assets m ON m.id = a.media_asset_id
+    WHERE a.id = ${ad.id}
   `;
   return mapAdRow(rows[0] as AdRow);
 }

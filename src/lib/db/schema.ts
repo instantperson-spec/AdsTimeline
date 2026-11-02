@@ -46,4 +46,25 @@ export async function ensureSchema(sql: Sql) {
     ALTER TABLE shows
     ADD COLUMN IF NOT EXISTS broadcast_weekdays JSONB NOT NULL DEFAULT '[]'::jsonb
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS media_assets (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL CHECK (kind IN ('image_only', 'video_and_poster')),
+      poster_url TEXT NOT NULL,
+      poster_pathname TEXT NOT NULL,
+      video_url TEXT,
+      video_pathname TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    ALTER TABLE ads
+    ADD COLUMN IF NOT EXISTS media_asset_id TEXT REFERENCES media_assets(id) ON DELETE SET NULL
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS ads_media_asset_id_idx ON ads (media_asset_id)`;
 }

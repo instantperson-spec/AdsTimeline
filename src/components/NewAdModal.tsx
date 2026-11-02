@@ -5,9 +5,10 @@ import { X, Plus, Pencil, Calendar, Film, Upload, Check } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { computeAdStatus, getTodayString } from '@/lib/date-utils';
 import { hasFlightWindow, recurrentFlightStorageDates } from '@/lib/ad-flight';
-import { compressVideoForWebPreview, shouldCompressVideo } from '@/lib/compress-video';
 import { isVideoFile, readVideoMetadata } from '@/lib/video-meta';
-import { uploadMediaFile } from '@/lib/timeline-api';
+import { fetchMediaAssets } from '@/lib/timeline-api';
+import { createMediaAssetFromFiles } from '@/lib/media-client-upload';
+import type { MediaAsset } from '@/types/media';
 
 interface NewAdModalProps {
   isOpen: boolean;
@@ -43,6 +44,8 @@ export function NewAdModal({
   const [endDate, setEndDate] = useState('2026-11-10');
   const [isTimeSensitive, setIsTimeSensitive] = useState(false);
   const [eventDate, setEventDate] = useState('');
+  const [mediaAssetId, setMediaAssetId] = useState<string>('');
+  const [mediaLibrary, setMediaLibrary] = useState<MediaAsset[]>([]);
   const [frameGrabUrl, setFrameGrabUrl] = useState('/placeholder-poster.svg');
   const [videoUrl, setVideoUrl] = useState('');
   const [notes, setNotes] = useState('');
@@ -71,6 +74,7 @@ export function NewAdModal({
         setEndDate('');
       }
       setEventDate(editAd.eventDate || '');
+      setMediaAssetId(editAd.mediaAssetId || '');
       setFrameGrabUrl(editAd.frameGrabUrl);
       setVideoUrl(editAd.videoUrl || '');
       setNotes(editAd.notes || '');
@@ -81,6 +85,31 @@ export function NewAdModal({
     if (initialShowId) setShowId(initialShowId);
     if (initialBreakNumber) setBreakNumber(initialBreakNumber);
   }, [isOpen, editAd, initialShowId, initialBreakNumber]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const items = await fetchMediaAssets();
+        if (!cancelled) setMediaLibrary(items);
+      } catch {
+        if (!cancelled) setMediaLibrary([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  const selectedMedia = mediaLibrary.find((m) => m.id === mediaAssetId);
+
+  useEffect(() => {
+    if (selectedMedia) {
+      setFrameGrabUrl(selectedMedia.posterUrl);
+      setVideoUrl(selectedMedia.videoUrl || '');
+    }
+  }, [selectedMedia]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -107,39 +136,21 @@ export function NewAdModal({
     setUploading(true);
     setCompressProgress(null);
     try {
-      let toUpload = file;
-
       if (isVideoFile(file)) {
         const meta = await readVideoMetadata(file);
         if (meta.durationSec != null) {
           setDurationSec(meta.durationSec);
           setDurationFromFile(true);
         }
-
-        if (
-          compressWebVideo &&
-          shouldCompressVideo(meta.width, meta.height, file.size)
-        ) {
-          try {
-            toUpload = await compressVideoForWebPreview(file, (ratio) => {
-              setCompressProgress(ratio);
-            });
-          } catch (compressErr) {
-            console.warn('Video compress failed, uploading original', compressErr);
-            toUpload = file;
-          }
-        }
       }
 
-      setCompressProgress(null);
-      const { url } = await uploadMediaFile(toUpload);
-      if (isVideoFile(file)) {
-        setVideoUrl(url);
-      } else if (file.type.startsWith('image/')) {
-        setFrameGrabUrl(url);
-      } else {
-        setVideoUrl(url);
-      }
+      const created = await createMediaAssetFromFiles(file, {
+        label: title.trim() || advertiser.trim() || undefined,
+        compressWebVideo,
+        onCompressProgress: setCompressProgress,
+      });
+      setMediaLibrary((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
+      setMediaAssetId(created.id);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -172,6 +183,7 @@ export function NewAdModal({
       endDate: flight.endDate,
       frameGrabUrl: frameGrabUrl.trim() || '/placeholder-poster.svg',
       videoUrl: videoUrl.trim() || undefined,
+      mediaAssetId: mediaAssetId || undefined,
       isTimeSensitive,
       eventDate: eventDate.trim() || undefined,
       replacementAction: editAd?.replacementAction ?? '',
@@ -409,10 +421,10 @@ export function NewAdModal({
           </div>
 
           <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="font-semibold text-zinc-300 flex items-center space-x-1.5">
                 <Film className="w-4 h-4 text-indigo-400" />
-                <span>Frame grab & preview video (20–30s H.264)</span>
+                <span>Cloud media (JPG or MP4 + snap)</span>
               </span>
               <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-indigo-300 font-semibold text-[11px] flex items-center space-x-1">
                 <Upload className="w-3 h-3" />
@@ -421,16 +433,22 @@ export function NewAdModal({
                     ? compressProgress != null
                       ? `Converting… ${Math.round(compressProgress * 100)}%`
                       : 'Uploading…'
-                    : 'Upload to Blob (MP4 / JPG)'}
+                    : 'New upload'}
                 </span>
                 <input
                   type="file"
-                  accept="video/mp4,video/quicktime,image/*"
+                  accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
                   onChange={handleFileUpload}
                   className="hidden"
+                  disabled={uploading}
                 />
               </label>
             </div>
+
+            <p className="text-[11px] text-zinc-500 leading-snug">
+              Screen grab only is enough for many spots. MP4 uploads get an auto poster frame. Pick
+              existing media to reuse across breaks.
+            </p>
 
             {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
 
@@ -442,29 +460,49 @@ export function NewAdModal({
                 disabled={uploading}
                 className="rounded border-zinc-700 text-indigo-600 focus:ring-0 w-3.5 h-3.5"
               />
-              Convert large videos to ~480p H.264 before upload (smaller preview on Blob)
+              Compress large MP4 to ~480p before upload
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-              <div>
-                <label className="text-zinc-400 block mb-1">Frame grab URL (poster)</label>
-                <input
-                  type="text"
-                  value={frameGrabUrl}
-                  onChange={(e) => setFrameGrabUrl(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-2.5 py-1.5 text-zinc-200 font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Preview video path</label>
-                <input
-                  type="text"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-2.5 py-1.5 text-zinc-200 font-mono"
-                />
-              </div>
+            <div>
+              <label className="text-zinc-400 block mb-1 text-[11px]">From media library</label>
+              <select
+                value={mediaAssetId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setMediaAssetId(id);
+                  if (!id) {
+                    setFrameGrabUrl('/placeholder-poster.svg');
+                    setVideoUrl('');
+                  }
+                }}
+                className="w-full bg-zinc-900 border border-zinc-750 rounded-lg px-2.5 py-2 text-sm text-zinc-200"
+              >
+                <option value="">— No linked media —</option>
+                {mediaLibrary.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.kind === 'image_only' ? '[JPG] ' : '[Video] '}
+                    {m.label} ({m.referenceCount} spots)
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {selectedMedia && (
+              <div className="flex gap-3 items-start">
+                <div className="w-28 aspect-video rounded-lg overflow-hidden bg-black ring-1 ring-zinc-800 shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={selectedMedia.posterUrl} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div className="text-[11px] text-zinc-400 space-y-1 min-w-0">
+                  <p className="text-zinc-200 font-semibold truncate">{selectedMedia.label}</p>
+                  <p>
+                    Type:{' '}
+                    {selectedMedia.kind === 'image_only' ? 'Screen grab only' : 'Preview + poster'}
+                  </p>
+                  <p className="font-mono truncate">{selectedMedia.id}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-zinc-800">

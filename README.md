@@ -27,7 +27,7 @@ On first load (no saved data in the browser), two real programmes are created:
 - **Sidebar:** Cards & schedule, Full timeline (Gantt), Edit panel (breaks / slots / Pull & Restore).
 - **Shows:** filter all programmes or one show; add show, add ad, MCR cue sheet.
 - **Client link:** choose programme (or all), spot list and/or timeline; copy URL for the publisher.
-- **Ad preview:** video + frame grab (URLs or file pick — blob/Neon planned for production).
+- **Ad preview:** JPG screen grab and/or preview MP4 via **media library** (Vercel Blob + Neon assets); spots link by `media_asset_id` — see [docs/media-i-reklamy.md](./docs/media-i-reklamy.md).
 - **Spot types:** **Permanent / recurrent** sponsor (no dates) vs **time-sensitive flight** (start + end on air, pull alerts on end date).
 
 ### Client (`/client`)
@@ -47,9 +47,17 @@ Example: `/client?show=IWMTV&view=list,timeline`
 
 - **Next.js 16** (App Router), React 19, Tailwind CSS v4
 - **Persistence:** Neon Postgres (shows + ads metadata)
-- **Media:** Vercel Blob (upload via `/api/media/upload`)
+- **Media:** Neon **media assets** + Blob under `media/{id}/` (poster required, preview optional); ads reference assets by ID for reuse across breaks. Admin **Media library** (browse/upload/delete). Legacy flat upload: `POST /api/media/upload`.
 
 Sample MP4/Unsplash demo assets are **not** included. Placeholder poster: `/placeholder-poster.svg`.
+
+### Documentation
+
+| Doc | Content |
+|-----|---------|
+| [docs/README.md](./docs/README.md) | Index |
+| [docs/media-i-reklamy.md](./docs/media-i-reklamy.md) | Domain model (PL): media vs slot, cloud layout, library, APIs |
+| [docs/stan-implementacji.md](./docs/stan-implementacji.md) | Implementation checklist (as-is vs planned) |
 
 ---
 
@@ -102,9 +110,11 @@ Framework preset: **Next.js**.
 ## Repository layout
 
 ```
+docs/                     Product & architecture specs (media vs ads)
 src/app/page.tsx          Admin application
 src/app/client/page.tsx   Client portal (URL params)
-src/lib/mock-data.ts      Real programmes only; empty ads
+src/app/api/media/upload  Blob upload (legacy flat paths)
+src/lib/db/               Neon schema & repositories
 src/lib/client-portal-url.ts   Client link builders
 src/components/           UI (timeline, edit matrix, modals)
 ```

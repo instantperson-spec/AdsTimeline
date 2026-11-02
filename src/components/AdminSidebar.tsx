@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LayoutGrid, CalendarDays, Pencil, Layers, Radio } from 'lucide-react';
+import { LayoutGrid, CalendarDays, Pencil, Layers, Radio, Film } from 'lucide-react';
 import type { AdminNavView } from '@/types/timeline';
 
 interface AdminSidebarProps {
@@ -84,6 +84,17 @@ export function AdminSidebar({ activeView, onChangeView, expiredCount }: AdminSi
         <p className="px-3 mt-2 text-[11px] text-zinc-500 leading-snug flex gap-1.5">
           <Layers className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           Breaks, Pull / Restore, spots
+        </p>
+        <button
+          type="button"
+          onClick={() => onChangeView('media')}
+          className={`${navBtn(activeView === 'media')} mt-2`}
+        >
+          <Film className="w-4 h-4 shrink-0 opacity-90" />
+          <span className="leading-tight">Media library</span>
+        </button>
+        <p className="px-3 mt-1 text-[10px] text-zinc-500 leading-snug">
+          Browse cloud JPG / video, delete unused
         </p>
       </div>
     </aside>
