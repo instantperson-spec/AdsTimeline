@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Film, Loader2, X, ImageIcon } from 'lucide-react';
 import {
   captureFrameFromVideoElement,
@@ -31,6 +31,14 @@ function toFrameSource(source: VideoFramePickerSource): VideoFrameSource {
   return { type: 'url', url: source.url };
 }
 
+export function sourceKeyForPicker(source: VideoFramePickerSource | null): string | null {
+  if (!source) return null;
+  if (source.mode === 'file') {
+    return `file:${source.file.name}:${source.file.size}:${source.file.lastModified}`;
+  }
+  return `url:${source.url}`;
+}
+
 export function VideoFramePickerModal({
   isOpen,
   onClose,
@@ -42,13 +50,20 @@ export function VideoFramePickerModal({
   onConfirm,
 }: VideoFramePickerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const sourceRef = useRef(source);
+  const userScrubbedRef = useRef(false);
+  const objectUrlRef = useRef<string | null>(null);
   const rangeId = useId();
+
+  const sourceKey = useMemo(() => sourceKeyForPicker(source), [source]);
+
   const [duration, setDuration] = useState(0);
   const [timeSec, setTimeSec] = useState(initialTimeSec);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
-  const objectUrlRef = useRef<string | null>(null);
+
+  sourceRef.current = source;
 
   const revokePreview = useCallback(() => {
     setPreviewUrl((prev) => {
@@ -63,8 +78,7 @@ export function VideoFramePickerModal({
     try {
       const blob = await captureFrameFromVideoElement(video);
       revokePreview();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+      setPreviewUrl(URL.createObjectURL(blob));
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Could not capture frame');
     } finally {
@@ -73,76 +87,87 @@ export function VideoFramePickerModal({
   }, [revokePreview]);
 
   useEffect(() => {
-    if (!isOpen || !source) return;
+    if (!isOpen || !sourceKey) return;
 
+    const activeSource = sourceRef.current;
+    if (!activeSource) return;
+
+    userScrubbedRef.current = false;
     setLoadError(null);
     setDuration(0);
     setTimeSec(initialTimeSec);
-
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
     revokePreview();
 
     const video = videoRef.current;
     if (!video) return;
 
-    if (source.mode === 'file') {
-      const url = URL.createObjectURL(source.file);
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+
+    video.pause();
+    video.removeAttribute('poster');
+
+    if (activeSource.mode === 'file') {
+      const url = URL.createObjectURL(activeSource.file);
       objectUrlRef.current = url;
       video.removeAttribute('crossorigin');
       video.src = url;
     } else {
       video.crossOrigin = 'anonymous';
-      video.src = source.url;
+      video.src = activeSource.url;
     }
+    video.load();
 
-    const onMeta = () => {
+    const onLoaded = () => {
       const d = video.duration;
       setDuration(Number.isFinite(d) ? d : 0);
-      const start = Number.isFinite(d) && d > 0 ? Math.min(initialTimeSec, d * 0.5) : initialTimeSec;
+
+      if (userScrubbedRef.current) return;
+
+      const start =
+        Number.isFinite(d) && d > 0
+          ? Math.min(initialTimeSec, Math.max(0, d - 0.05))
+          : initialTimeSec;
       setTimeSec(start);
       video.currentTime = start;
     };
-    const onErr = () => {
-      setLoadError(
-        source.mode === 'url'
-          ? 'Could not load video (check network or CORS).'
-          : 'Could not load video file.'
-      );
-    };
-
-    video.addEventListener('loadedmetadata', onMeta);
-    video.addEventListener('error', onErr);
-
-    return () => {
-      video.removeEventListener('loadedmetadata', onMeta);
-      video.removeEventListener('error', onErr);
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
-      video.removeAttribute('src');
-      video.load();
-      revokePreview();
-    };
-  }, [isOpen, source, initialTimeSec, revokePreview]);
-
-  useEffect(() => {
-    if (!isOpen || !source) return;
-    const video = videoRef.current;
-    if (!video || loadError) return;
 
     const onSeeked = () => {
       void refreshPreview(video);
     };
 
+    const onErr = () => {
+      setLoadError(
+        activeSource.mode === 'url'
+          ? 'Could not load video (check network or CORS).'
+          : 'Could not load video file.'
+      );
+    };
+
+    video.addEventListener('loadeddata', onLoaded);
     video.addEventListener('seeked', onSeeked);
-    return () => video.removeEventListener('seeked', onSeeked);
-  }, [isOpen, source, loadError, refreshPreview]);
+    video.addEventListener('error', onErr);
+
+    return () => {
+      video.removeEventListener('loadeddata', onLoaded);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onErr);
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      revokePreview();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when picker session / source changes
+  }, [isOpen, sourceKey, initialTimeSec]);
 
   const handleRange = (value: number) => {
+    userScrubbedRef.current = true;
     setTimeSec(value);
     const video = videoRef.current;
     if (video && !loadError) {
@@ -151,20 +176,22 @@ export function VideoFramePickerModal({
   };
 
   const handleConfirm = async () => {
-    if (!source || busy) return;
+    const activeSource = sourceRef.current;
+    if (!activeSource || busy) return;
     setCapturing(true);
     setLoadError(null);
     try {
       const video = videoRef.current;
+      const atSec = video?.currentTime ?? timeSec;
       const blob = video
         ? await captureFrameFromVideoElement(video)
-        : await captureVideoFrameAtTime(toFrameSource(source), timeSec);
+        : await captureVideoFrameAtTime(toFrameSource(activeSource), atSec);
       const base =
-        source.mode === 'file'
-          ? source.file.name.replace(/\.[^.]+$/, '') || 'poster'
-          : source.filenameBase || 'poster';
+        activeSource.mode === 'file'
+          ? activeSource.file.name.replace(/\.[^.]+$/, '') || 'poster'
+          : activeSource.filenameBase || 'poster';
       const file = new File([blob], `${base}-poster.jpg`, { type: 'image/jpeg' });
-      await onConfirm(file, timeSec);
+      await onConfirm(file, atSec);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Could not save frame');
     } finally {
@@ -204,11 +231,12 @@ export function VideoFramePickerModal({
         <div className="flex flex-col lg:flex-row min-h-0 flex-1 overflow-hidden">
           <div className="flex-1 min-w-0 bg-black flex flex-col">
             <video
+              key={sourceKey ?? 'none'}
               ref={videoRef}
               className="w-full max-h-[40vh] lg:max-h-none lg:flex-1 object-contain bg-black"
               muted
               playsInline
-              preload="metadata"
+              preload="auto"
             />
             <div className="px-4 py-3 border-t border-zinc-800 space-y-2 shrink-0">
               <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
@@ -223,7 +251,7 @@ export function VideoFramePickerModal({
                 type="range"
                 min={0}
                 max={maxTime}
-                step={0.05}
+                step={0.04}
                 value={Math.min(timeSec, maxTime)}
                 onChange={(e) => handleRange(Number(e.target.value))}
                 disabled={busy || !!loadError}

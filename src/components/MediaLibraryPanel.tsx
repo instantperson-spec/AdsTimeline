@@ -23,6 +23,7 @@ import { isVideoFile } from '@/lib/video-meta';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 import {
   VideoFramePickerModal,
+  sourceKeyForPicker,
   type VideoFramePickerSource,
 } from '@/components/VideoFramePickerModal';
 
@@ -135,15 +136,25 @@ export function MediaLibraryPanel() {
     }
   };
 
-  const framePickerSource: VideoFramePickerSource | null = framePicker
-    ? framePicker.mode === 'upload'
-      ? { mode: 'file', file: framePicker.file }
-      : {
-          mode: 'url',
-          url: framePicker.asset.videoUrl!,
-          filenameBase: framePicker.asset.label,
-        }
-    : null;
+  const framePickerSource: VideoFramePickerSource | null = useMemo(() => {
+    if (!framePicker) return null;
+    if (framePicker.mode === 'upload') {
+      return { mode: 'file', file: framePicker.file };
+    }
+    return {
+      mode: 'url',
+      url: framePicker.asset.videoUrl!,
+      filenameBase: framePicker.asset.label,
+    };
+  }, [framePicker]);
+
+  const framePickerModalKey = useMemo(() => {
+    if (!framePicker) return 'closed';
+    if (framePicker.mode === 'upload') {
+      return sourceKeyForPicker({ mode: 'file', file: framePicker.file }) ?? 'upload';
+    }
+    return framePicker.asset.id;
+  }, [framePicker]);
 
   const patchAssetInList = (updated: MediaAsset) => {
     setItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
@@ -382,6 +393,7 @@ export function MediaLibraryPanel() {
       )}
 
       <VideoFramePickerModal
+        key={framePickerModalKey}
         isOpen={framePicker !== null}
         onClose={() => !uploading && setFramePicker(null)}
         source={framePickerSource}
