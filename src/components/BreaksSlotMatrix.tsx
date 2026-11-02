@@ -16,11 +16,15 @@ import {
   RotateCcw,
   ChevronUp,
   ChevronDown,
-  Copy,
+  CopyPlus,
+  ArrowRightLeft,
+  ClipboardCopy,
+  CirclePause,
 } from 'lucide-react';
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
+import { MatrixIconButton } from '@/components/MatrixIconButton';
 
 interface BreaksSlotMatrixProps {
   ads: CommercialAd[];
@@ -134,83 +138,80 @@ export function BreaksSlotMatrix({
                             Break {breakNum}
                           </h3>
                         </div>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center gap-0.5 overflow-visible">
                           <span className="text-[11px] font-mono text-zinc-400 mr-1">
                             {totalDuration}s total
                           </span>
                           {breakAds.length > 0 && (
                             <>
-                              <button
-                                type="button"
+                              <MatrixIconButton
+                                label={
+                                  show.breakCount >= 6
+                                    ? 'Max 6 breaks — copy spots into another break instead'
+                                    : 'Duplicate entire break (new break at end)'
+                                }
                                 onClick={() => onDuplicateBreak(show.id, breakNum)}
                                 disabled={show.breakCount >= 6}
-                                className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                title={
-                                  show.breakCount >= 6
-                                    ? 'Max 6 breaks — copy into another break instead'
-                                    : 'Duplicate all spots to a new break at the end'
-                                }
+                                variant="cyan"
                               >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
+                                <CopyPlus className="w-3.5 h-3.5" />
+                              </MatrixIconButton>
+                              <MatrixIconButton
+                                label="Move all spots to another programme"
                                 onClick={() =>
                                   onOpenMoveBreak(show.id, breakNum, breakAds.length)
                                 }
-                                className="px-1.5 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-semibold text-emerald-300 hover:text-emerald-200"
-                                title="Move all spots in this break to another programme"
+                                variant="emerald"
                               >
-                                Move to programme…
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const raw = await dialog.prompt({
-                                    title: 'Copy to break',
-                                    message: `Copy ${breakAds.length} spot(s) from Break ${breakNum} into break number (1–${show.breakCount}):`,
-                                    defaultValue: String(breakNum),
-                                    confirmLabel: 'Copy',
-                                  });
-                                  if (raw == null) return;
-                                  const target = parseInt(raw, 10);
-                                  if (
-                                    !Number.isFinite(target) ||
-                                    target < 1 ||
-                                    target > show.breakCount
-                                  ) {
-                                    await dialog.alert({
-                                      title: 'Invalid break number',
-                                      message: `Enter a break number between 1 and ${show.breakCount}.`,
+                                <ArrowRightLeft className="w-3.5 h-3.5" />
+                              </MatrixIconButton>
+                              <MatrixIconButton
+                                label="Copy all spots into another break (same programme)"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void (async () => {
+                                    const raw = await dialog.prompt({
+                                      title: 'Copy to break',
+                                      message: `Copy ${breakAds.length} spot(s) from Break ${breakNum} into break number (1–${show.breakCount}):`,
+                                      defaultValue: String(breakNum),
+                                      confirmLabel: 'Copy',
                                     });
-                                    return;
-                                  }
-                                  onCopyBreakTo(show.id, breakNum, target);
+                                    if (raw == null) return;
+                                    const target = parseInt(raw, 10);
+                                    if (
+                                      !Number.isFinite(target) ||
+                                      target < 1 ||
+                                      target > show.breakCount
+                                    ) {
+                                      await dialog.alert({
+                                        title: 'Invalid break number',
+                                        message: `Enter a break number between 1 and ${show.breakCount}.`,
+                                      });
+                                      return;
+                                    }
+                                    onCopyBreakTo(show.id, breakNum, target);
+                                  })();
                                 }}
-                                className="px-1.5 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-semibold text-zinc-300 hover:text-white"
-                                title="Copy all spots into another break (appends to existing slots)"
                               >
-                                Copy to…
-                              </button>
+                                <ClipboardCopy className="w-3.5 h-3.5" />
+                              </MatrixIconButton>
                             </>
                           )}
-                          <button
-                            type="button"
+                          <MatrixIconButton
+                            label="Add spot to this break"
                             onClick={() => onOpenNewAdForBreak(show.id, breakNum)}
-                            className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
-                            title="Add ad to this break"
+                            variant="indigo"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                          </button>
+                          </MatrixIconButton>
                           {show.breakCount > 1 && (
-                            <button
-                              type="button"
+                            <MatrixIconButton
+                              label="Remove this commercial break"
                               onClick={() => onRemoveBreak(show.id, breakNum)}
-                              className="p-1 rounded-lg bg-zinc-800 hover:bg-rose-950 text-zinc-400 hover:text-rose-300 transition-colors"
-                              title="Remove this commercial break"
+                              variant="rose"
                             >
                               <Minus className="w-3.5 h-3.5" />
-                            </button>
+                            </MatrixIconButton>
                           )}
                         </div>
                       </div>
@@ -311,72 +312,69 @@ export function BreaksSlotMatrix({
                                     Click to edit
                                   </span>
 
-                                  <div className="flex items-center space-x-2">
-                                    <div className="flex flex-col -my-0.5 mr-1">
-                                      <button
-                                        type="button"
+                                  <div className="flex items-center gap-0.5">
+                                    <div className="flex flex-col -my-0.5">
+                                      <MatrixIconButton
+                                        label="Move spot up in break"
                                         disabled={idx === 0}
+                                        variant="indigo"
+                                        size="sm"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onMoveSpot(show.id, breakNum, ad.id, 'up');
                                         }}
-                                        className="p-0.5 text-zinc-500 hover:text-indigo-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title="Move spot up in break"
                                       >
                                         <ChevronUp className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
+                                      </MatrixIconButton>
+                                      <MatrixIconButton
+                                        label="Move spot down in break"
                                         disabled={idx === breakAds.length - 1}
+                                        variant="indigo"
+                                        size="sm"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onMoveSpot(show.id, breakNum, ad.id, 'down');
                                         }}
-                                        className="p-0.5 text-zinc-500 hover:text-indigo-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title="Move spot down in break"
                                       >
                                         <ChevronDown className="w-3.5 h-3.5" />
-                                      </button>
+                                      </MatrixIconButton>
                                     </div>
                                     {isTakenOff ? (
-                                      <button
-                                        type="button"
+                                      <MatrixIconButton
+                                        label="Restore on air (undo Pull)"
+                                        variant="emerald"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onRestoreAd(ad.id);
                                         }}
-                                        className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-0.5"
-                                        title="Restore spot on air (undo Pull)"
                                       >
-                                        <RotateCcw className="w-3 h-3" />
-                                        Restore
-                                      </button>
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                      </MatrixIconButton>
                                     ) : (
-                                      <button
-                                        type="button"
+                                      <MatrixIconButton
+                                        label="Pull spot off air"
+                                        variant="rose"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onTakeOffAd(ad.id);
                                         }}
-                                        className="text-xs text-rose-400 hover:text-rose-300 font-medium"
-                                        title="Take this spot off air"
                                       >
-                                        Pull
-                                      </button>
+                                        <CirclePause className="w-3.5 h-3.5" />
+                                      </MatrixIconButton>
                                     )}
-                                    <button
-                                      type="button"
+                                    <MatrixIconButton
+                                      label="Duplicate spot to another break"
+                                      variant="cyan"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         onCopySpot(ad);
                                       }}
-                                      className="text-xs text-cyan-400 hover:text-cyan-300 font-medium"
-                                      title="Duplicate this spot to another break"
                                     >
-                                      Copy to…
-                                    </button>
-                                    <button
-                                      type="button"
+                                      <CopyPlus className="w-3.5 h-3.5" />
+                                    </MatrixIconButton>
+                                    <MatrixIconButton
+                                      label="Delete spot"
+                                      variant="rose"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         void (async () => {
@@ -389,11 +387,9 @@ export function BreaksSlotMatrix({
                                           if (ok) onDeleteAd(ad.id);
                                         })();
                                       }}
-                                      className="text-zinc-500 hover:text-rose-400 p-0.5"
-                                      title="Delete ad"
                                     >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </MatrixIconButton>
                                   </div>
                                 </div>
                               </div>
