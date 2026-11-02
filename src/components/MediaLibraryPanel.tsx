@@ -10,14 +10,27 @@ import {
   Search,
   Play,
   X,
+  Scan,
 } from 'lucide-react';
 import type { MediaAsset } from '@/types/media';
 import { apiDeleteMediaAsset, fetchMediaAssets } from '@/lib/timeline-api';
-import { createMediaAssetFromFiles } from '@/lib/media-client-upload';
+import {
+  createMediaAssetFromFiles,
+  replaceMediaAssetPoster,
+} from '@/lib/media-client-upload';
 import { assetNeedsVideoThumbnail } from '@/lib/media-display';
+import { isVideoFile } from '@/lib/video-meta';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
+import {
+  VideoFramePickerModal,
+  type VideoFramePickerSource,
+} from '@/components/VideoFramePickerModal';
 
 type KindFilter = 'all' | 'image_only' | 'video_and_poster';
+
+type FramePickerContext =
+  | { mode: 'upload'; file: File; label: string }
+  | { mode: 'replace'; asset: MediaAsset };
 
 export function MediaLibraryPanel() {
   const [items, setItems] = useState<MediaAsset[]>([]);
@@ -30,6 +43,7 @@ export function MediaLibraryPanel() {
   const [uploadLabel, setUploadLabel] = useState('');
   const [compressWebVideo, setCompressWebVideo] = useState(true);
   const [preview, setPreview] = useState<MediaAsset | null>(null);
+  const [framePicker, setFramePicker] = useState<FramePickerContext | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const dialog = useAppDialog();
 
@@ -59,18 +73,15 @@ export function MediaLibraryPanel() {
     });
   }, [items, search, kindFilter]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-
+  const runVideoUpload = async (file: File, label: string, posterFile: File) => {
     setActionError(null);
     setUploading(true);
     setCompressProgress(null);
     try {
       const created = await createMediaAssetFromFiles(file, {
-        label: uploadLabel,
+        label,
         compressWebVideo,
+        posterFile,
         onCompressProgress: setCompressProgress,
       });
       setItems((prev) => [created, ...prev]);
@@ -80,6 +91,29 @@ export function MediaLibraryPanel() {
     } finally {
       setUploading(false);
       setCompressProgress(null);
+    }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (isVideoFile(file)) {
+      setFramePicker({ mode: 'upload', file, label: uploadLabel });
+      return;
+    }
+
+    setActionError(null);
+    setUploading(true);
+    try {
+      const created = await createMediaAssetFromFiles(file, { label: uploadLabel });
+      setItems((prev) => [created, ...prev]);
+      setUploadLabel('');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -101,6 +135,21 @@ export function MediaLibraryPanel() {
     }
   };
 
+  const framePickerSource: VideoFramePickerSource | null = framePicker
+    ? framePicker.mode === 'upload'
+      ? { mode: 'file', file: framePicker.file }
+      : {
+          mode: 'url',
+          url: framePicker.asset.videoUrl!,
+          filenameBase: framePicker.asset.label,
+        }
+    : null;
+
+  const patchAssetInList = (updated: MediaAsset) => {
+    setItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    setPreview((p) => (p?.id === updated.id ? updated : p));
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-zinc-950">
       <div className="shrink-0 border-b border-zinc-800 px-4 lg:px-6 py-4 space-y-3">
@@ -111,8 +160,8 @@ export function MediaLibraryPanel() {
               Media library
             </h1>
             <p className="text-sm text-zinc-400 mt-1 max-w-2xl">
-              Cloud assets (JPG screen grab or MP4 + poster). Spots link to media — same files can
-              sit in multiple breaks.
+              Cloud assets (JPG screen grab or MP4 + poster). For video, pick the poster frame before
+              upload or anytime from the card / preview.
             </p>
           </div>
           <button
@@ -163,7 +212,7 @@ export function MediaLibraryPanel() {
               type="file"
               accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
               className="hidden"
-              disabled={uploading}
+              disabled={uploading || framePicker !== null}
               onChange={handleUpload}
             />
           </label>
@@ -205,6 +254,7 @@ export function MediaLibraryPanel() {
                   {assetNeedsVideoThumbnail(asset) && asset.videoUrl ? (
                     <video
                       src={asset.videoUrl}
+                      poster={asset.posterUrl}
                       muted
                       playsInline
                       preload="metadata"
@@ -243,6 +293,16 @@ export function MediaLibraryPanel() {
                     <span className="text-zinc-200 font-semibold">{asset.referenceCount}</span>{' '}
                     spot{asset.referenceCount === 1 ? '' : 's'}
                   </p>
+                  {asset.videoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFramePicker({ mode: 'replace', asset })}
+                      className="inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold border border-indigo-500/40 text-indigo-200 hover:bg-indigo-950/50"
+                    >
+                      <Scan className="w-3.5 h-3.5" />
+                      Pick poster frame
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={asset.referenceCount > 0}
@@ -287,6 +347,7 @@ export function MediaLibraryPanel() {
                   poster={preview.posterUrl}
                   controls
                   playsInline
+                  crossOrigin="anonymous"
                   className="w-full h-full object-contain"
                 />
               ) : (
@@ -294,17 +355,65 @@ export function MediaLibraryPanel() {
                 <img src={preview.posterUrl} alt="" className="w-full h-full object-contain" />
               )}
             </div>
-            <div className="px-4 py-3 flex items-center gap-2 text-sm text-zinc-400">
+            <div className="px-4 py-3 flex flex-wrap items-center gap-2 text-sm text-zinc-400 border-t border-zinc-800">
               {preview.kind === 'image_only' ? (
                 <ImageIcon className="w-4 h-4 text-amber-400" />
               ) : (
                 <Film className="w-4 h-4 text-indigo-400" />
               )}
-              {preview.kind === 'image_only' ? 'Screen grab only' : 'Preview video + poster'}
+              <span className="flex-1 min-w-[140px]">
+                {preview.kind === 'image_only' ? 'Screen grab only' : 'Preview video + poster'}
+              </span>
+              {preview.videoUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFramePicker({ mode: 'replace', asset: preview });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-200 text-xs font-semibold hover:bg-indigo-600/30"
+                >
+                  <Scan className="w-3.5 h-3.5" />
+                  Pick poster frame
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      <VideoFramePickerModal
+        isOpen={framePicker !== null}
+        onClose={() => !uploading && setFramePicker(null)}
+        source={framePickerSource}
+        busy={uploading}
+        title={
+          framePicker?.mode === 'upload'
+            ? 'Choose poster frame — then upload'
+            : 'Update poster frame'
+        }
+        confirmLabel={
+          framePicker?.mode === 'upload' ? 'Upload with this frame' : 'Save poster frame'
+        }
+        onConfirm={async (posterFile) => {
+          if (!framePicker) return;
+          if (framePicker.mode === 'upload') {
+            setFramePicker(null);
+            await runVideoUpload(framePicker.file, framePicker.label, posterFile);
+            return;
+          }
+          setUploading(true);
+          setActionError(null);
+          try {
+            const updated = await replaceMediaAssetPoster(framePicker.asset, posterFile);
+            patchAssetInList(updated);
+            setFramePicker(null);
+          } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Could not update poster');
+          } finally {
+            setUploading(false);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -87,6 +87,34 @@ export async function updateMediaAssetLabel(id: string, label: string): Promise<
   return updated;
 }
 
+export async function updateMediaAssetPoster(
+  id: string,
+  posterUrl: string,
+  posterPathname: string
+): Promise<MediaAsset> {
+  await ensureDbReady();
+  const asset = await getMediaAssetById(id);
+  if (!asset) throw new Error('Media asset not found');
+  if (asset.kind !== 'video_and_poster') {
+    throw new Error('Poster frame picker applies to video assets only');
+  }
+
+  const sql = getSql();
+  await sql`
+    UPDATE media_assets
+    SET poster_url = ${posterUrl}, poster_pathname = ${posterPathname}, updated_at = NOW()
+    WHERE id = ${id}
+  `;
+  await sql`
+    UPDATE ads SET frame_grab_url = ${posterUrl}, updated_at = NOW()
+    WHERE media_asset_id = ${id}
+  `;
+
+  const updated = await getMediaAssetById(id);
+  if (!updated) throw new Error('Media asset not found');
+  return updated;
+}
+
 export async function deleteMediaAsset(id: string): Promise<void> {
   const asset = await getMediaAssetById(id);
   if (!asset) throw new Error('Media asset not found');

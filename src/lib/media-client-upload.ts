@@ -11,6 +11,8 @@ export type CreateMediaOptions = {
   label?: string;
   compressWebVideo?: boolean;
   onCompressProgress?: (ratio: number) => void;
+  /** When set for video upload, skips auto poster extraction at 1s. */
+  posterFile?: File;
 };
 
 function assertFileSize(file: File, label: string): void {
@@ -65,7 +67,9 @@ export async function createMediaAssetFromFiles(
 
     assertFileSize(videoToUpload, 'Video');
 
-    const poster = await extractVideoPosterFile(videoToUpload);
+    const poster =
+      options.posterFile ??
+      (await extractVideoPosterFile(videoToUpload));
     assertFileSize(poster, 'Poster');
 
     const posterPath = `media/${id}/poster${posterExtension(poster)}`;
@@ -116,4 +120,30 @@ export async function createMediaAssetFromFiles(
   }
 
   throw new Error('Choose a JPG/PNG screen grab or MP4 preview');
+}
+
+export async function replaceMediaAssetPoster(
+  asset: MediaAsset,
+  posterFile: File
+): Promise<MediaAsset> {
+  assertFileSize(posterFile, 'Poster');
+  if (!asset.posterPathname.startsWith(`media/${asset.id}/`)) {
+    throw new Error('Invalid poster path for this asset');
+  }
+
+  const posterBlob = await uploadMediaFile(asset.posterPathname, posterFile);
+
+  const res = await fetch(`/api/media/${encodeURIComponent(asset.id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      posterUrl: posterBlob.url,
+      posterPathname: posterBlob.pathname,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Could not update poster');
+  }
+  return data as MediaAsset;
 }

@@ -3,7 +3,9 @@ import {
   deleteMediaAsset,
   getMediaAssetById,
   updateMediaAssetLabel,
+  updateMediaAssetPoster,
 } from '@/lib/db/media-repository';
+import { isAllowedMediaBlobPathname } from '@/lib/media-shared';
 import { handleRouteError, requireDatabase } from '@/lib/api-error';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -30,9 +32,33 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    const body = (await request.json()) as { label?: string };
+    const body = (await request.json()) as {
+      label?: string;
+      posterUrl?: string;
+      posterPathname?: string;
+    };
+
+    if (body.posterUrl != null && body.posterPathname != null) {
+      const posterUrl = String(body.posterUrl).trim();
+      const posterPathname = String(body.posterPathname).trim();
+      if (!posterUrl || !posterPathname) {
+        return NextResponse.json({ error: 'posterUrl and posterPathname are required' }, { status: 400 });
+      }
+      if (!isAllowedMediaBlobPathname(posterPathname)) {
+        return NextResponse.json({ error: 'Invalid poster path' }, { status: 400 });
+      }
+      if (!posterPathname.startsWith(`media/${id}/`)) {
+        return NextResponse.json({ error: 'Poster path must belong to this asset' }, { status: 400 });
+      }
+      const updated = await updateMediaAssetPoster(id, posterUrl, posterPathname);
+      return NextResponse.json(updated);
+    }
+
     if (typeof body.label !== 'string' || !body.label.trim()) {
-      return NextResponse.json({ error: 'label is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Provide label or posterUrl + posterPathname' },
+        { status: 400 }
+      );
     }
     const updated = await updateMediaAssetLabel(id, body.label.trim());
     return NextResponse.json(updated);
