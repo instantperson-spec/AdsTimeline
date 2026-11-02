@@ -5,6 +5,7 @@ import { ensureSchema } from '@/lib/db/schema';
 import { mapAdRow, mapShowRow, type AdRow, type ShowRow } from '@/lib/db/mappers';
 import { STORED_AD_CATEGORY } from '@/lib/db/stored-ad-category';
 import { parseBroadcastWeekdaysFromDb, parseBroadcastWeekdays } from '@/lib/show-broadcast';
+import { runLegacyMediaBackfill } from '@/lib/legacy-media-backfill';
 
 async function backfillShowBroadcastWeekdays(sql: ReturnType<typeof getSql>): Promise<void> {
   const rows = await sql`
@@ -64,6 +65,7 @@ export async function initTimelineData(): Promise<void> {
 
 export async function fetchTimeline(): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
   await initTimelineData();
+  await runLegacyMediaBackfill();
 
   const sql = getSql();
   const showRows = await sql`SELECT * FROM shows ORDER BY created_at ASC`;

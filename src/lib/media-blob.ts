@@ -32,7 +32,9 @@ export async function uploadBlobFile(
 
 export async function deleteBlobPathnames(pathnames: string[]): Promise<void> {
   assertBlobConfigured();
-  const unique = [...new Set(pathnames.filter(Boolean))];
+  const unique = [
+    ...new Set(pathnames.filter((p) => p && isDeletableBlobPathname(p))),
+  ];
   if (unique.length === 0) return;
   await del(unique);
 }
@@ -47,4 +49,25 @@ export function posterExtension(file: File): string {
 
 export function newMediaAssetId(): string {
   return `med-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function isPlaceholderPosterUrl(url: string): boolean {
+  const t = url.trim();
+  return !t || t.startsWith('/placeholder');
+}
+
+/** Public Vercel Blob URL → store pathname (e.g. spots/…-irwin.mp4). */
+export function pathnameFromBlobUrl(url: string): string | null {
+  if (!url || url.startsWith('/')) return null;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes('blob.vercel-storage.com')) return null;
+    return decodeURIComponent(u.pathname.replace(/^\//, ''));
+  } catch {
+    return null;
+  }
+}
+
+export function isDeletableBlobPathname(pathname: string): boolean {
+  return pathname.startsWith('spots/') || pathname.startsWith('media/');
 }

@@ -3,6 +3,8 @@ import { getSql } from '@/lib/db/client';
 import { ensureSchema } from '@/lib/db/schema';
 import { mapMediaAssetRow, type MediaAssetRow } from '@/lib/db/media-mappers';
 import { deleteBlobPathnames } from '@/lib/media-blob';
+import { runLegacyMediaBackfill } from '@/lib/legacy-media-backfill';
+
 async function ensureDbReady(): Promise<void> {
   const sql = getSql();
   await ensureSchema(sql);
@@ -10,6 +12,7 @@ async function ensureDbReady(): Promise<void> {
 
 export async function listMediaAssets(): Promise<MediaAsset[]> {
   await ensureDbReady();
+  await runLegacyMediaBackfill();
   const sql = getSql();
   const rows = await sql`
     SELECT

@@ -14,6 +14,7 @@ import {
 import type { MediaAsset } from '@/types/media';
 import { apiDeleteMediaAsset, fetchMediaAssets } from '@/lib/timeline-api';
 import { createMediaAssetFromFiles } from '@/lib/media-client-upload';
+import { assetNeedsVideoThumbnail } from '@/lib/media-display';
 
 type KindFilter = 'all' | 'image_only' | 'video_and_poster';
 
@@ -199,12 +200,22 @@ export function MediaLibraryPanel() {
                   onClick={() => setPreview(asset)}
                   className="relative aspect-video bg-black group"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={asset.posterUrl}
-                    alt=""
-                    className="w-full h-full object-contain"
-                  />
+                  {assetNeedsVideoThumbnail(asset) && asset.videoUrl ? (
+                    <video
+                      src={asset.videoUrl}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={asset.posterUrl}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                   {asset.videoUrl && (
                     <span className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/70 text-white">
                       <Play className="w-4 h-4" />
