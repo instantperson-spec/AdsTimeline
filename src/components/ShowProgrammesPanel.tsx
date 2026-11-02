@@ -269,7 +269,7 @@ export function ShowProgrammesPanel({
                     ))}
                   </select>
                   <p className="text-[10px] text-zinc-500 mt-1">
-                    To remove a break and shift spots, use Edit panel.
+                    To remove a break and shift spots, use Spots & breaks (Editing).
                   </p>
                 </div>
 

@@ -21,6 +21,8 @@ import {
 
 import { Header } from '@/components/Header';
 import { AdminSidebar } from '@/components/AdminSidebar';
+import { AdminLayerChrome } from '@/components/AdminLayerChrome';
+import { adminNavLayer } from '@/lib/admin-nav';
 import { ClientTimelineListView } from '@/components/ClientTimelineListView';
 import { BreaksSlotMatrix } from '@/components/BreaksSlotMatrix';
 import { ShowProgrammesPanel } from '@/components/ShowProgrammesPanel';
@@ -414,7 +416,13 @@ export default function AdsTimelineApp() {
           expiredCount={expiredCount}
         />
 
-        <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+        <main
+          className={`flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden ${
+            adminNavLayer(adminView) === 'presentation' ? 'bg-zinc-950' : 'bg-zinc-900/40'
+          }`}
+        >
+          <AdminLayerChrome view={adminView} />
+
           {(adminView === 'cards' || adminView === 'gantt') && (
             <ClientTimelineListView
               ads={ads}

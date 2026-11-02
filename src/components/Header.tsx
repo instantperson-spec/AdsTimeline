@@ -12,6 +12,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { AdminNavView, CommercialShow } from '@/types/timeline';
+import { isEditingView } from '@/lib/admin-nav';
 import { ClientLinkModal } from '@/components/ClientLinkModal';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 
@@ -56,6 +57,10 @@ export function Header({
   const clientLinkInitialViews =
     adminView === 'gantt' ? (['timeline'] as const) : (['list'] as const);
 
+  const editingMode = isEditingView(adminView);
+  const showCreateShow = editingMode && adminView === 'programmes';
+  const showCreateAd = editingMode && adminView === 'edit';
+
   return (
     <>
     <header className="border-b border-zinc-700 bg-zinc-900 sticky top-0 z-40 shrink-0">
@@ -66,7 +71,13 @@ export function Header({
           </div>
           <div className="min-w-0">
             <p className="text-base font-bold text-white leading-tight">Commercial schedule</p>
-            <p className="text-sm text-zinc-300 leading-snug">Faith World TV · Instant Productions</p>
+            <p className="text-sm text-zinc-300 leading-snug">
+              Faith World TV · Instant Productions
+              <span className="text-zinc-500"> · </span>
+              <span className={editingMode ? 'text-amber-300/90' : 'text-cyan-300/90'}>
+                {editingMode ? 'Editing workspace' : 'Presentation'}
+              </span>
+            </p>
           </div>
         </div>
 
@@ -91,23 +102,27 @@ export function Header({
             <span className="sm:hidden">MCR</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onOpenNewShow}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-800 text-sm font-medium text-zinc-100 hover:bg-zinc-700"
-          >
-            <TvMinimalPlay className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Show</span>
-          </button>
+          {showCreateShow && (
+            <button
+              type="button"
+              onClick={onOpenNewShow}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-700/50 bg-amber-950/40 text-sm font-medium text-amber-100 hover:bg-amber-900/50"
+            >
+              <TvMinimalPlay className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>New programme</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={onOpenNewAd}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-bold text-white shadow-sm"
-          >
-            <Plus className="w-4 h-4 shrink-0" />
-            <span>Ad</span>
-          </button>
+          {showCreateAd && (
+            <button
+              type="button"
+              onClick={onOpenNewAd}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-sm font-bold text-zinc-950 shadow-sm"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>New spot</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -171,7 +186,7 @@ export function Header({
                   >
                     {show.title}
                   </button>
-                  {isSelected && onDeleteShow && (
+                  {isSelected && onDeleteShow && editingMode && adminView === 'programmes' && (
                     <button
                       type="button"
                       onClick={() => {
