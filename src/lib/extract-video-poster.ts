@@ -53,6 +53,27 @@ async function seekVideoTo(video: HTMLVideoElement, timeSec: number): Promise<vo
 
 /** Capture the current frame from an already-loaded, seeked video element. */
 export async function captureFrameFromVideoElement(video: HTMLVideoElement): Promise<Blob> {
+  if (video.readyState < 2) {
+    await new Promise<void>((resolve, reject) => {
+      const onReady = () => {
+        cleanup();
+        resolve();
+      };
+      const onErr = () => {
+        cleanup();
+        reject(new Error('Video not ready for capture'));
+      };
+      const cleanup = () => {
+        video.removeEventListener('loadeddata', onReady);
+        video.removeEventListener('error', onErr);
+      };
+      video.addEventListener('loadeddata', onReady);
+      video.addEventListener('error', onErr);
+    });
+  }
+  if (!video.videoWidth || !video.videoHeight) {
+    throw new Error('Video frame has no dimensions yet — try moving the slider again');
+  }
   return videoFrameToJpegBlob(video);
 }
 

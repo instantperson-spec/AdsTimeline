@@ -142,8 +142,8 @@ export function MediaLibraryPanel() {
       return { mode: 'file', file: framePicker.file };
     }
     return {
-      mode: 'url',
-      url: framePicker.asset.videoUrl!,
+      mode: 'asset',
+      assetId: framePicker.asset.id,
       filenameBase: framePicker.asset.label,
     };
   }, [framePicker]);

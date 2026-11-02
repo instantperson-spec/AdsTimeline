@@ -11,7 +11,8 @@ import {
 
 export type VideoFramePickerSource =
   | { mode: 'file'; file: File }
-  | { mode: 'url'; url: string; filenameBase?: string };
+  /** Existing library asset — loads via same-origin preview stream (seek + canvas safe). */
+  | { mode: 'asset'; assetId: string; filenameBase?: string };
 
 interface VideoFramePickerModalProps {
   isOpen: boolean;
@@ -28,7 +29,10 @@ function toFrameSource(source: VideoFramePickerSource): VideoFrameSource {
   if (source.mode === 'file') {
     return { type: 'file', file: source.file };
   }
-  return { type: 'url', url: source.url };
+  return {
+    type: 'url',
+    url: `/api/media/${encodeURIComponent(source.assetId)}/preview-video`,
+  };
 }
 
 export function sourceKeyForPicker(source: VideoFramePickerSource | null): string | null {
@@ -36,7 +40,7 @@ export function sourceKeyForPicker(source: VideoFramePickerSource | null): strin
   if (source.mode === 'file') {
     return `file:${source.file.name}:${source.file.size}:${source.file.lastModified}`;
   }
-  return `url:${source.url}`;
+  return `asset:${source.assetId}`;
 }
 
 export function VideoFramePickerModal({
@@ -53,6 +57,7 @@ export function VideoFramePickerModal({
   const sourceRef = useRef(source);
   const userScrubbedRef = useRef(false);
   const objectUrlRef = useRef<string | null>(null);
+  const captureSeqRef = useRef(0);
   const rangeId = useId();
 
   const sourceKey = useMemo(() => sourceKeyForPicker(source), [source]);
@@ -62,6 +67,7 @@ export function VideoFramePickerModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
 
   sourceRef.current = source;
 
@@ -72,19 +78,25 @@ export function VideoFramePickerModal({
     });
   }, []);
 
-  const refreshPreview = useCallback(async (video: HTMLVideoElement) => {
-    setCapturing(true);
-    setLoadError(null);
-    try {
-      const blob = await captureFrameFromVideoElement(video);
-      revokePreview();
-      setPreviewUrl(URL.createObjectURL(blob));
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Could not capture frame');
-    } finally {
-      setCapturing(false);
-    }
-  }, [revokePreview]);
+  const refreshPreview = useCallback(
+    async (video: HTMLVideoElement) => {
+      const seq = ++captureSeqRef.current;
+      setCapturing(true);
+      setLoadError(null);
+      try {
+        const blob = await captureFrameFromVideoElement(video);
+        if (seq !== captureSeqRef.current) return;
+        revokePreview();
+        setPreviewUrl(URL.createObjectURL(blob));
+      } catch (e) {
+        if (seq !== captureSeqRef.current) return;
+        setLoadError(e instanceof Error ? e.message : 'Could not capture frame');
+      } finally {
+        if (seq === captureSeqRef.current) setCapturing(false);
+      }
+    },
+    [revokePreview]
+  );
 
   useEffect(() => {
     if (!isOpen || !sourceKey) return;
@@ -93,9 +105,11 @@ export function VideoFramePickerModal({
     if (!activeSource) return;
 
     userScrubbedRef.current = false;
+    captureSeqRef.current = 0;
     setLoadError(null);
     setDuration(0);
     setTimeSec(initialTimeSec);
+    setVideoLoading(true);
     revokePreview();
 
     const video = videoRef.current;
@@ -108,19 +122,19 @@ export function VideoFramePickerModal({
 
     video.pause();
     video.removeAttribute('poster');
+    video.removeAttribute('crossorigin');
 
     if (activeSource.mode === 'file') {
       const url = URL.createObjectURL(activeSource.file);
       objectUrlRef.current = url;
-      video.removeAttribute('crossorigin');
       video.src = url;
     } else {
-      video.crossOrigin = 'anonymous';
-      video.src = activeSource.url;
+      video.src = `/api/media/${encodeURIComponent(activeSource.assetId)}/preview-video`;
     }
     video.load();
 
     const onLoaded = () => {
+      setVideoLoading(false);
       const d = video.duration;
       setDuration(Number.isFinite(d) ? d : 0);
 
@@ -135,15 +149,13 @@ export function VideoFramePickerModal({
     };
 
     const onSeeked = () => {
+      setTimeSec(video.currentTime);
       void refreshPreview(video);
     };
 
     const onErr = () => {
-      setLoadError(
-        activeSource.mode === 'url'
-          ? 'Could not load video (check network or CORS).'
-          : 'Could not load video file.'
-      );
+      setVideoLoading(false);
+      setLoadError('Could not load video for frame picker.');
     };
 
     video.addEventListener('loadeddata', onLoaded);
@@ -229,7 +241,12 @@ export function VideoFramePickerModal({
         </div>
 
         <div className="flex flex-col lg:flex-row min-h-0 flex-1 overflow-hidden">
-          <div className="flex-1 min-w-0 bg-black flex flex-col">
+          <div className="flex-1 min-w-0 bg-black flex flex-col relative">
+            {videoLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
+                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+              </div>
+            )}
             <video
               key={sourceKey ?? 'none'}
               ref={videoRef}
@@ -253,8 +270,9 @@ export function VideoFramePickerModal({
                 max={maxTime}
                 step={0.04}
                 value={Math.min(timeSec, maxTime)}
+                onInput={(e) => handleRange(Number(e.currentTarget.value))}
                 onChange={(e) => handleRange(Number(e.target.value))}
-                disabled={busy || !!loadError}
+                disabled={busy || !!loadError || videoLoading}
                 className="w-full accent-indigo-500"
               />
             </div>
@@ -288,7 +306,7 @@ export function VideoFramePickerModal({
             <button
               type="button"
               onClick={() => void handleConfirm()}
-              disabled={busy || capturing || !!loadError}
+              disabled={busy || capturing || !!loadError || videoLoading}
               className="mt-auto w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold flex items-center justify-center gap-2"
             >
               {(busy || capturing) && <Loader2 className="w-4 h-4 animate-spin" />}
