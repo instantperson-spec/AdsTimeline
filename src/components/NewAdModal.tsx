@@ -58,32 +58,34 @@ export function NewAdModal({
   const [compressWebVideo, setCompressWebVideo] = useState(true);
   const [durationFromFile, setDurationFromFile] = useState(false);
 
+  // Load edit draft once per spot — do not reset when user changes programme/break in the form.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !editAd) return;
 
-    if (editAd) {
-      setShowId(editAd.showId);
-      setBreakNumber(editAd.breakNumber);
-      setSlotIndex(editAd.slotIndex);
-      setTitle(editAd.title);
-      setAdvertiser(editAd.advertiser);
-      setDurationSec(editAd.durationSec);
-      setIsTimeSensitive(editAd.isTimeSensitive);
-      if (hasFlightWindow(editAd)) {
-        setStartDate(editAd.startDate);
-        setEndDate(editAd.endDate);
-      } else {
-        setStartDate(getTodayString());
-        setEndDate('');
-      }
-      setEventDate(editAd.eventDate || '');
-      setMediaAssetId(editAd.mediaAssetId || '');
-      setFrameGrabUrl(editAd.frameGrabUrl);
-      setVideoUrl(editAd.videoUrl || '');
-      setNotes(editAd.notes || '');
-      setDurationFromFile(false);
-      return;
+    setShowId(editAd.showId);
+    setBreakNumber(editAd.breakNumber);
+    setSlotIndex(editAd.slotIndex);
+    setTitle(editAd.title);
+    setAdvertiser(editAd.advertiser);
+    setDurationSec(editAd.durationSec);
+    setIsTimeSensitive(editAd.isTimeSensitive);
+    if (hasFlightWindow(editAd)) {
+      setStartDate(editAd.startDate);
+      setEndDate(editAd.endDate);
+    } else {
+      setStartDate(getTodayString());
+      setEndDate('');
     }
+    setEventDate(editAd.eventDate || '');
+    setMediaAssetId(editAd.mediaAssetId || '');
+    setFrameGrabUrl(editAd.frameGrabUrl);
+    setVideoUrl(editAd.videoUrl || '');
+    setNotes(editAd.notes || '');
+    setDurationFromFile(false);
+  }, [isOpen, editAd?.id]);
+
+  useEffect(() => {
+    if (!isOpen || editAd) return;
 
     if (initialShowId) setShowId(initialShowId);
     if (initialBreakNumber) setBreakNumber(initialBreakNumber);
@@ -244,7 +246,9 @@ export function NewAdModal({
                 {isEditMode ? 'Edit commercial spot' : 'Add new ad'}
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Break slot, flight dates, and media preview
+                {isEditMode
+                  ? 'Change programme, break, or slot — then Save'
+                  : 'Break slot, flight dates, and media preview'}
               </p>
             </div>
           </div>
@@ -263,7 +267,15 @@ export function NewAdModal({
               <label className="block text-zinc-300 font-semibold mb-1">TV show *</label>
               <select
                 value={showId}
-                onChange={(e) => setShowId(e.target.value)}
+                onChange={(e) => {
+                  const nextShowId = e.target.value;
+                  setShowId(nextShowId);
+                  const nextShow = shows.find((s) => s.id === nextShowId);
+                  const maxBreak = nextShow?.breakCount ?? 3;
+                  if (breakNumber > maxBreak) {
+                    setBreakNumber(maxBreak);
+                  }
+                }}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 focus:outline-none focus:border-indigo-500"
               >
                 {shows.map((s) => (
