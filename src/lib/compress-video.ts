@@ -26,14 +26,15 @@ type FfmpegRuntime = {
 
 let ffmpegModules: Promise<FfmpegRuntime> | null = null;
 
+/** Runtime CDN imports — avoids bundling @ffmpeg/ffmpeg (Worker URLs break Turbopack). */
 async function loadFfmpegModules(): Promise<FfmpegRuntime> {
   if (!ffmpegModules) {
     ffmpegModules = (async () => {
       const importEsm = (url: string) =>
         new Function('u', 'return import(u)')(url) as Promise<Record<string, unknown>>;
       const [ffmpeg, util] = await Promise.all([
-        importEsm('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
-        importEsm('https://esm.sh/@ffmpeg/util@0.12.10'),
+        importEsm('https://esm.sh/@ffmpeg/ffmpeg@0.12.15'),
+        importEsm('https://esm.sh/@ffmpeg/util@0.12.2'),
       ]);
       return {
         FFmpeg: ffmpeg.FFmpeg as FfmpegRuntime['FFmpeg'],
@@ -65,7 +66,7 @@ export async function compressVideoForWebPreview(
   });
 
   const coreVersion = '0.12.10';
-  const baseURL = `https://unpkg.com/@ffmpeg/core-st@${coreVersion}/dist/umd`;
+  const baseURL = `https://unpkg.com/@ffmpeg/core@${coreVersion}/dist/umd`;
 
   await ffmpeg.load({
     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),

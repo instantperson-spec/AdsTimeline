@@ -1,9 +1,5 @@
-import {
-  assertUploadSize,
-  newMediaAssetId,
-  posterExtension,
-  uploadBlobFile,
-} from '@/lib/media-blob';
+import { assertUploadSize, newMediaAssetId, posterExtension, uploadBlobFile } from '@/lib/media-blob';
+import { isAllowedMediaBlobPathname } from '@/lib/media-shared';
 import type { MediaAssetKind } from '@/types/media';
 import { insertMediaAsset } from '@/lib/db/media-repository';
 import type { MediaAsset } from '@/types/media';
@@ -71,5 +67,52 @@ export async function createMediaAssetFromFormData(formData: FormData): Promise<
     posterPathname: posterBlob.pathname,
     videoUrl,
     videoPathname,
+  });
+}
+
+export type MediaAssetBlobRefs = {
+  id: string;
+  label?: string;
+  posterUrl: string;
+  posterPathname: string;
+  videoUrl?: string;
+  videoPathname?: string;
+};
+
+/** Register a media asset after files were uploaded via Vercel Blob client upload. */
+export async function createMediaAssetFromBlobRefs(input: MediaAssetBlobRefs): Promise<MediaAsset> {
+  const id = input.id.trim();
+  if (!/^med-\d+-[a-z0-9]+$/.test(id)) {
+    throw new Error('Invalid media asset id');
+  }
+  if (!isAllowedMediaBlobPathname(input.posterPathname)) {
+    throw new Error('Invalid poster path');
+  }
+  if (!input.posterPathname.startsWith(`media/${id}/`)) {
+    throw new Error('Poster path must match asset id');
+  }
+  if (input.videoPathname) {
+    if (!isAllowedMediaBlobPathname(input.videoPathname)) {
+      throw new Error('Invalid video path');
+    }
+    if (input.videoPathname !== `media/${id}/preview.mp4`) {
+      throw new Error('Video path must be preview.mp4 for this asset');
+    }
+    if (!input.videoUrl?.trim()) {
+      throw new Error('videoUrl is required with videoPathname');
+    }
+  }
+
+  const kind: MediaAssetKind = input.videoPathname ? 'video_and_poster' : 'image_only';
+  const defaultLabel = input.label?.trim() || 'Media';
+
+  return insertMediaAsset({
+    id,
+    label: defaultLabel,
+    kind,
+    posterUrl: input.posterUrl.trim(),
+    posterPathname: input.posterPathname,
+    videoUrl: input.videoUrl?.trim(),
+    videoPathname: input.videoPathname,
   });
 }

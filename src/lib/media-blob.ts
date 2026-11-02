@@ -1,6 +1,9 @@
 import { put, del } from '@vercel/blob';
+import { MEDIA_MAX_BYTES, newMediaAssetId, posterExtension } from '@/lib/media-shared';
 
-const MAX_BYTES = 80 * 1024 * 1024;
+export { newMediaAssetId, posterExtension };
+
+const MAX_BYTES = MEDIA_MAX_BYTES;
 
 export function assertBlobConfigured(): void {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -37,18 +40,6 @@ export async function deleteBlobPathnames(pathnames: string[]): Promise<void> {
   ];
   if (unique.length === 0) return;
   await del(unique);
-}
-
-export function posterExtension(file: File): string {
-  const lower = file.name.toLowerCase();
-  if (lower.endsWith('.png')) return '.png';
-  if (lower.endsWith('.webp')) return '.webp';
-  if (lower.endsWith('.jpeg')) return '.jpeg';
-  return '.jpg';
-}
-
-export function newMediaAssetId(): string {
-  return `med-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function isPlaceholderPosterUrl(url: string): boolean {
