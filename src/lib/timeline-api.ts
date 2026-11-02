@@ -136,6 +136,19 @@ export async function apiDeleteAd(adId: string): Promise<void> {
   await parseJson(res);
 }
 
+export async function apiDuplicateSpot(
+  adId: string,
+  targetShowId: string,
+  targetBreakNumber: number
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  const res = await fetch(`/api/ads/${encodeURIComponent(adId)}/duplicate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetShowId, targetBreakNumber }),
+  });
+  return parseJson(res);
+}
+
 /** @deprecated Prefer createMediaAssetFromFiles — keeps assets in the media library. */
 export async function uploadMediaFile(file: File): Promise<{ url: string }> {
   const formData = new FormData();

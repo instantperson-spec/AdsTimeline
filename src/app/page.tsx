@@ -16,6 +16,7 @@ import {
   apiCreateAd,
   apiUpdateAd,
   apiDeleteAd,
+  apiDuplicateSpot,
 } from '@/lib/timeline-api';
 
 import { Header } from '@/components/Header';
@@ -30,6 +31,7 @@ import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 import { MediaLibraryPanel } from '@/components/MediaLibraryPanel';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 import { MoveBreakModal, type MoveBreakRequest } from '@/components/MoveBreakModal';
+import { CopySpotModal, type CopySpotTarget } from '@/components/CopySpotModal';
 
 export default function AdsTimelineApp() {
   const dialog = useAppDialog();
@@ -47,6 +49,8 @@ export default function AdsTimelineApp() {
   const [isCueSheetOpen, setIsCueSheetOpen] = useState(false);
   const [moveBreakRequest, setMoveBreakRequest] = useState<MoveBreakRequest | null>(null);
   const [moveBreakBusy, setMoveBreakBusy] = useState(false);
+  const [copySpotAd, setCopySpotAd] = useState<CommercialAd | null>(null);
+  const [copySpotBusy, setCopySpotBusy] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -301,6 +305,44 @@ export default function AdsTimelineApp() {
     }
   };
 
+  const handleConfirmCopySpot = async (target: CopySpotTarget) => {
+    const spot = copySpotAd;
+    if (!spot) return;
+
+    const targetShow = shows.find((s) => s.id === target.targetShowId);
+    const sourceShow = shows.find((s) => s.id === spot.showId);
+    if (!targetShow || !sourceShow) return;
+
+    setCopySpotAd(null);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+    const ok = await dialog.confirm({
+      title: 'Duplicate spot',
+      message: `Copy "${spot.title}" to "${targetShow.title}" Break ${target.targetBreakNumber}?\n\nThe original spot stays where it is.`,
+      confirmLabel: 'Duplicate',
+    });
+    if (!ok) return;
+
+    setCopySpotBusy(true);
+    try {
+      const data = await apiDuplicateSpot(
+        spot.id,
+        target.targetShowId,
+        target.targetBreakNumber
+      );
+      applyTimelinePayload(data);
+    } catch (e) {
+      await dialog.alert({
+        title: 'Could not duplicate spot',
+        message: e instanceof Error ? e.message : 'Something went wrong',
+      });
+    } finally {
+      setCopySpotBusy(false);
+    }
+  };
+
   const handleRemoveBreak = async (showId: string, breakNumber: number) => {
     const show = shows.find((s) => s.id === showId);
     if (!show || show.breakCount <= 1) return;
@@ -411,10 +453,20 @@ export default function AdsTimelineApp() {
               onDuplicateBreak={handleDuplicateBreak}
               onCopyBreakTo={handleCopyBreakTo}
               onOpenMoveBreak={handleOpenMoveBreak}
+              onCopySpot={setCopySpotAd}
             />
           )}
         </main>
       </div>
+
+      <CopySpotModal
+        isOpen={copySpotAd !== null}
+        onClose={() => !copySpotBusy && setCopySpotAd(null)}
+        shows={shows}
+        spot={copySpotAd}
+        onConfirm={handleConfirmCopySpot}
+        busy={copySpotBusy}
+      />
 
       <MoveBreakModal
         isOpen={moveBreakRequest !== null}

@@ -232,8 +232,9 @@ export async function reorderBreakSlots(
   return fetchTimeline();
 }
 
-function cloneAdForBreakCopy(
+function cloneAdForPlacement(
   source: CommercialAd,
+  targetShowId: string,
   breakNumber: number,
   slotIndex: number
 ): CommercialAd {
@@ -241,6 +242,7 @@ function cloneAdForBreakCopy(
   const clone: CommercialAd = {
     ...source,
     id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    showId: targetShowId,
     breakNumber,
     slotIndex,
     takenOffAt: undefined,
@@ -294,11 +296,38 @@ export async function copyCommercialBreak(
     targetAds.length > 0 ? Math.max(...targetAds.map((a) => a.slotIndex)) + 1 : 1;
 
   for (const source of sourceAds) {
-    const clone = cloneAdForBreakCopy(source, targetBreakNumber, nextSlot);
+    const clone = cloneAdForPlacement(source, showId, targetBreakNumber, nextSlot);
     await insertAd(clone);
     nextSlot += 1;
   }
 
+  return fetchTimeline();
+}
+
+export async function duplicateSpotToBreak(
+  adId: string,
+  targetShowId: string,
+  targetBreakNumber: number
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  await initTimelineData();
+  const { ads: allAds, shows } = await fetchTimeline();
+  const source = allAds.find((a) => a.id === adId);
+  if (!source) throw new Error('Spot not found');
+
+  const targetShow = shows.find((s) => s.id === targetShowId);
+  if (!targetShow) throw new Error('Programme not found');
+  if (targetBreakNumber < 1 || targetBreakNumber > targetShow.breakCount) {
+    throw new Error('Target break number is out of range');
+  }
+
+  const targetAds = allAds.filter(
+    (a) => a.showId === targetShowId && a.breakNumber === targetBreakNumber
+  );
+  const nextSlot =
+    targetAds.length > 0 ? Math.max(...targetAds.map((a) => a.slotIndex)) + 1 : 1;
+
+  const clone = cloneAdForPlacement(source, targetShowId, targetBreakNumber, nextSlot);
+  await insertAd(clone);
   return fetchTimeline();
 }
 

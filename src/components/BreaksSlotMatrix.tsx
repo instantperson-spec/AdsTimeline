@@ -42,6 +42,7 @@ interface BreaksSlotMatrixProps {
   onDuplicateBreak: (showId: string, sourceBreakNumber: number) => void;
   onCopyBreakTo: (showId: string, sourceBreakNumber: number, targetBreakNumber: number) => void;
   onOpenMoveBreak: (showId: string, sourceBreakNumber: number, spotCount: number) => void;
+  onCopySpot: (ad: CommercialAd) => void;
 }
 
 export function BreaksSlotMatrix({
@@ -59,6 +60,7 @@ export function BreaksSlotMatrix({
   onDuplicateBreak,
   onCopyBreakTo,
   onOpenMoveBreak,
+  onCopySpot,
 }: BreaksSlotMatrixProps) {
   const dialog = useAppDialog();
 
@@ -362,6 +364,17 @@ export function BreaksSlotMatrix({
                                         Pull
                                       </button>
                                     )}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onCopySpot(ad);
+                                      }}
+                                      className="text-xs text-cyan-400 hover:text-cyan-300 font-medium"
+                                      title="Duplicate this spot to another break"
+                                    >
+                                      Copy to…
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={(e) => {
