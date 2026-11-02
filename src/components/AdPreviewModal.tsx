@@ -22,6 +22,7 @@ import {
 import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
+import { adPosterSrc } from '@/lib/media-display';
 
 interface AdPreviewModalProps {
   ad: CommercialAd | null;
@@ -181,7 +182,7 @@ export function AdPreviewModal({
               <video
                 ref={videoRef}
                 src={ad.videoUrl}
-                poster={ad.frameGrabUrl}
+                poster={adPosterSrc(ad)}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
@@ -254,7 +255,7 @@ export function AdPreviewModal({
             <div className="relative w-full h-full flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={ad.frameGrabUrl}
+                src={adPosterSrc(ad)}
                 alt={ad.title}
                 className="w-full h-full object-contain"
               />

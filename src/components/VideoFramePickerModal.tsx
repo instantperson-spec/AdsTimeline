@@ -247,14 +247,24 @@ export function VideoFramePickerModal({
                 <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
               </div>
             )}
-            <video
-              key={sourceKey ?? 'none'}
-              ref={videoRef}
-              className="w-full max-h-[40vh] lg:max-h-none lg:flex-1 object-contain bg-black"
-              muted
-              playsInline
-              preload="auto"
-            />
+            <div className="relative w-full flex-1 min-h-[180px] max-h-[40vh] lg:max-h-none bg-black">
+              <video
+                key={sourceKey ?? 'none'}
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-contain"
+                muted
+                playsInline
+                preload="auto"
+              />
+              {previewUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={previewUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-contain bg-black pointer-events-none"
+                />
+              )}
+            </div>
             <div className="px-4 py-3 border-t border-zinc-800 space-y-2 shrink-0">
               <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
                 <label htmlFor={rangeId}>Scrub to frame</label>

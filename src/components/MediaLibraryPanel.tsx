@@ -18,7 +18,10 @@ import {
   createMediaAssetFromFiles,
   replaceMediaAssetPoster,
 } from '@/lib/media-client-upload';
-import { assetNeedsVideoThumbnail } from '@/lib/media-display';
+import {
+  assetNeedsVideoThumbnail,
+  mediaAssetPosterSrc,
+} from '@/lib/media-display';
 import { isVideoFile } from '@/lib/video-meta';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 import {
@@ -262,10 +265,17 @@ export function MediaLibraryPanel() {
                   onClick={() => setPreview(asset)}
                   className="relative aspect-video bg-black group"
                 >
-                  {assetNeedsVideoThumbnail(asset) && asset.videoUrl ? (
+                  {asset.videoUrl && !assetNeedsVideoThumbnail(asset) ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={mediaAssetPosterSrc(asset)}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  ) : assetNeedsVideoThumbnail(asset) && asset.videoUrl ? (
                     <video
                       src={asset.videoUrl}
-                      poster={asset.posterUrl}
+                      poster={mediaAssetPosterSrc(asset)}
                       muted
                       playsInline
                       preload="metadata"
@@ -274,7 +284,7 @@ export function MediaLibraryPanel() {
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={asset.posterUrl}
+                      src={mediaAssetPosterSrc(asset)}
                       alt=""
                       className="w-full h-full object-contain"
                     />
@@ -354,8 +364,9 @@ export function MediaLibraryPanel() {
             <div className="aspect-video bg-black flex items-center justify-center">
               {preview.videoUrl ? (
                 <video
+                  key={preview.updatedAt}
                   src={preview.videoUrl}
-                  poster={preview.posterUrl}
+                  poster={mediaAssetPosterSrc(preview)}
                   controls
                   playsInline
                   crossOrigin="anonymous"
@@ -363,7 +374,11 @@ export function MediaLibraryPanel() {
                 />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={preview.posterUrl} alt="" className="w-full h-full object-contain" />
+                <img
+                  src={mediaAssetPosterSrc(preview)}
+                  alt=""
+                  className="w-full h-full object-contain"
+                />
               )}
             </div>
             <div className="px-4 py-3 flex flex-wrap items-center gap-2 text-sm text-zinc-400 border-t border-zinc-800">

@@ -25,6 +25,7 @@ import { CommercialAd, CommercialShow } from '@/types/timeline';
 import { formatDaysRemainingText, formatDateDisplay, tracksPullDeadline } from '@/lib/date-utils';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
 import { MatrixIconButton } from '@/components/MatrixIconButton';
+import { adPosterSrc } from '@/lib/media-display';
 
 interface BreaksSlotMatrixProps {
   ads: CommercialAd[];
@@ -275,7 +276,7 @@ export function BreaksSlotMatrix({
                                     <div className="relative w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0 group/vid ring-1 ring-zinc-800">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
-                                        src={ad.frameGrabUrl}
+                                        src={adPosterSrc(ad)}
                                         alt={ad.title}
                                         className="w-full h-full object-cover transition-transform group-hover/vid:scale-105"
                                       />
