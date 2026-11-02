@@ -41,6 +41,7 @@ interface BreaksSlotMatrixProps {
   ) => void;
   onDuplicateBreak: (showId: string, sourceBreakNumber: number) => void;
   onCopyBreakTo: (showId: string, sourceBreakNumber: number, targetBreakNumber: number) => void;
+  onOpenMoveBreak: (showId: string, sourceBreakNumber: number, spotCount: number) => void;
 }
 
 export function BreaksSlotMatrix({
@@ -57,6 +58,7 @@ export function BreaksSlotMatrix({
   onMoveSpot,
   onDuplicateBreak,
   onCopyBreakTo,
+  onOpenMoveBreak,
 }: BreaksSlotMatrixProps) {
   const dialog = useAppDialog();
 
@@ -148,6 +150,16 @@ export function BreaksSlotMatrix({
                                 }
                               >
                                 <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onOpenMoveBreak(show.id, breakNum, breakAds.length)
+                                }
+                                className="px-1.5 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-semibold text-emerald-300 hover:text-emerald-200"
+                                title="Move all spots in this break to another programme"
+                              >
+                                Move to programme…
                               </button>
                               <button
                                 type="button"

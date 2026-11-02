@@ -302,6 +302,60 @@ export async function copyCommercialBreak(
   return fetchTimeline();
 }
 
+export async function moveBreakToProgramme(
+  sourceShowId: string,
+  sourceBreakNumber: number,
+  targetShowId: string,
+  targetBreakNumber: number
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  await initTimelineData();
+  const { ads: allAds, shows } = await fetchTimeline();
+  const sourceShow = shows.find((s) => s.id === sourceShowId);
+  const targetShow = shows.find((s) => s.id === targetShowId);
+  if (!sourceShow || !targetShow) {
+    throw new Error('Programme not found');
+  }
+  if (sourceBreakNumber < 1 || sourceBreakNumber > sourceShow.breakCount) {
+    throw new Error('Source break number is out of range');
+  }
+  if (targetBreakNumber < 1 || targetBreakNumber > targetShow.breakCount) {
+    throw new Error('Target break number is out of range');
+  }
+
+  const sourceAds = allAds
+    .filter((a) => a.showId === sourceShowId && a.breakNumber === sourceBreakNumber)
+    .sort((a, b) => a.slotIndex - b.slotIndex || a.createdAt.localeCompare(b.createdAt));
+
+  if (sourceAds.length === 0) {
+    throw new Error('This break has no spots to move');
+  }
+
+  if (sourceShowId === targetShowId && sourceBreakNumber === targetBreakNumber) {
+    throw new Error('Choose a different programme or break');
+  }
+
+  const targetAds = allAds.filter(
+    (a) => a.showId === targetShowId && a.breakNumber === targetBreakNumber
+  );
+  let nextSlot =
+    targetAds.length > 0 ? Math.max(...targetAds.map((a) => a.slotIndex)) + 1 : 1;
+
+  const sql = getSql();
+  for (const ad of sourceAds) {
+    await sql`
+      UPDATE ads SET
+        show_id = ${targetShowId},
+        break_number = ${targetBreakNumber},
+        slot_index = ${nextSlot},
+        updated_at = NOW()
+      WHERE id = ${ad.id}
+    `;
+    nextSlot += 1;
+  }
+
+  return fetchTimeline();
+}
+
 async function denormalizedMediaFields(
   sql: ReturnType<typeof getSql>,
   ad: CommercialAd

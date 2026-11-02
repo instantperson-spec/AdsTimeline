@@ -12,6 +12,7 @@ import {
   apiRemoveBreak,
   apiReorderBreak,
   apiCopyBreak,
+  apiMoveBreakToProgramme,
   apiCreateAd,
   apiUpdateAd,
   apiDeleteAd,
@@ -28,6 +29,7 @@ import { NewShowModal } from '@/components/NewShowModal';
 import { TrafficCueSheetModal } from '@/components/TrafficCueSheetModal';
 import { MediaLibraryPanel } from '@/components/MediaLibraryPanel';
 import { useAppDialog } from '@/components/app-dialog/AppDialogProvider';
+import { MoveBreakModal, type MoveBreakRequest } from '@/components/MoveBreakModal';
 
 export default function AdsTimelineApp() {
   const dialog = useAppDialog();
@@ -43,6 +45,8 @@ export default function AdsTimelineApp() {
   const [editingAd, setEditingAd] = useState<CommercialAd | null>(null);
   const [isNewShowOpen, setIsNewShowOpen] = useState(false);
   const [isCueSheetOpen, setIsCueSheetOpen] = useState(false);
+  const [moveBreakRequest, setMoveBreakRequest] = useState<MoveBreakRequest | null>(null);
+  const [moveBreakBusy, setMoveBreakBusy] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -246,6 +250,52 @@ export default function AdsTimelineApp() {
     }
   };
 
+  const handleOpenMoveBreak = (
+    showId: string,
+    sourceBreakNumber: number,
+    spotCount: number
+  ) => {
+    setMoveBreakRequest({
+      sourceShowId: showId,
+      sourceBreakNumber,
+      spotCount,
+      targetShowId: '',
+      targetBreakNumber: 1,
+    });
+  };
+
+  const handleConfirmMoveBreak = async (req: MoveBreakRequest) => {
+    const sourceShow = shows.find((s) => s.id === req.sourceShowId);
+    const targetShow = shows.find((s) => s.id === req.targetShowId);
+    if (!sourceShow || !targetShow) return;
+
+    const ok = await dialog.confirm({
+      title: 'Move entire break',
+      message: `Move ${req.spotCount} spot(s) from "${sourceShow.title}" Break ${req.sourceBreakNumber} to "${targetShow.title}" Break ${req.targetBreakNumber}?`,
+      confirmLabel: 'Move all',
+    });
+    if (!ok) return;
+
+    setMoveBreakBusy(true);
+    try {
+      const data = await apiMoveBreakToProgramme(
+        req.sourceShowId,
+        req.sourceBreakNumber,
+        req.targetShowId,
+        req.targetBreakNumber
+      );
+      applyTimelinePayload(data);
+      setMoveBreakRequest(null);
+    } catch (e) {
+      await dialog.alert({
+        title: 'Could not move break',
+        message: e instanceof Error ? e.message : 'Something went wrong',
+      });
+    } finally {
+      setMoveBreakBusy(false);
+    }
+  };
+
   const handleRemoveBreak = async (showId: string, breakNumber: number) => {
     const show = shows.find((s) => s.id === showId);
     if (!show || show.breakCount <= 1) return;
@@ -355,10 +405,20 @@ export default function AdsTimelineApp() {
               onMoveSpot={handleMoveSpot}
               onDuplicateBreak={handleDuplicateBreak}
               onCopyBreakTo={handleCopyBreakTo}
+              onOpenMoveBreak={handleOpenMoveBreak}
             />
           )}
         </main>
       </div>
+
+      <MoveBreakModal
+        isOpen={moveBreakRequest !== null}
+        onClose={() => !moveBreakBusy && setMoveBreakRequest(null)}
+        shows={shows}
+        request={moveBreakRequest}
+        onConfirm={handleConfirmMoveBreak}
+        busy={moveBreakBusy}
+      />
 
       <AdPreviewModal
         ad={selectedAd}

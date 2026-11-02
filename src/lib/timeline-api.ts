@@ -99,6 +99,20 @@ export async function apiCopyBreak(
   return parseJson(res);
 }
 
+export async function apiMoveBreakToProgramme(
+  sourceShowId: string,
+  sourceBreakNumber: number,
+  targetShowId: string,
+  targetBreakNumber: number
+): Promise<{ shows: CommercialShow[]; ads: CommercialAd[] }> {
+  const res = await fetch(`/api/shows/${encodeURIComponent(sourceShowId)}/move-break`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sourceBreakNumber, targetShowId, targetBreakNumber }),
+  });
+  return parseJson(res);
+}
+
 export async function apiCreateAd(ad: CommercialAd): Promise<CommercialAd> {
   const res = await fetch('/api/ads', {
     method: 'POST',
