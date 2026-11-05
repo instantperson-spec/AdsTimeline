@@ -39,8 +39,13 @@ import {
   GanttShowBroadcastOverlay,
   type GanttDayColumn,
 } from '@/components/GanttBroadcastDayGrid';
-
-const GANTT_VISIBLE_DAYS = 42;
+import { hasFlightWindow } from '@/lib/ad-flight';
+import {
+  computeGanttWindow,
+  fitDayWidth,
+  GANTT_RANGE_PRESETS,
+  type GanttRangePreset,
+} from '@/lib/gantt-range';
 
 /** Distinct lane styling per commercial break (physical + color separation). */
 const BREAK_LANE_THEME: Record<
@@ -84,13 +89,6 @@ function breakTheme(breakNumber: number) {
   return BREAK_LANE_THEME[breakNumber] ?? BREAK_LANE_THEME[((breakNumber - 1) % 3) + 1];
 }
 
-const GANTT_DAY_SCALES: { label: string; width: number }[] = [
-  { label: 'Minimal grid (48px)', width: 48 },
-  { label: 'Compact (56px)', width: 56 },
-  { label: 'Standard (72px)', width: 72 },
-  { label: 'Wide (96px)', width: 96 },
-];
-
 const GANTT_LABEL_COL_PX = 360;
 
 /** Fixed column width — border included so header + body stay aligned. */
@@ -130,12 +128,6 @@ function timelineTrackStyle(totalTimelineWidth: number): React.CSSProperties {
   };
 }
 
-function defaultGanttWindowStart(today: Date): Date {
-  const start = new Date(today);
-  start.setDate(start.getDate() - 10);
-  return start;
-}
-
 export type TimelineSubView = 'cards_timeline' | 'gantt_timeline';
 
 interface ClientTimelineListViewProps {
@@ -163,7 +155,9 @@ export function ClientTimelineListView({
     isClientView ? 'active_only' : 'all'
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [dayWidth, setDayWidth] = useState<number>(48);
+  const [ganttRangePreset, setGanttRangePreset] = useState<GanttRangePreset>('30d');
+  const [ganttPanDays, setGanttPanDays] = useState(0);
+  const [ganttTrackWidthPx, setGanttTrackWidthPx] = useState(720);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -171,46 +165,90 @@ export function ClientTimelineListView({
   const todayStr = '2026-10-31';
   const todayDate = useMemo(() => new Date(todayStr + 'T00:00:00'), [todayStr]);
 
-  const [ganttWindowStart, setGanttWindowStart] = useState<Date>(() =>
-    defaultGanttWindowStart(new Date(todayStr + 'T00:00:00'))
+  const activeFlightAdsForRange = useMemo(() => {
+    return ads.filter((ad) => {
+      if (selectedShowId !== 'all' && ad.showId !== selectedShowId) return false;
+      if (ad.takenOffAt) return false;
+      if (ad.status !== 'active') return false;
+      if (!hasFlightWindow(ad)) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = ad.title.toLowerCase().includes(q);
+        const matchAdvertiser = ad.advertiser.toLowerCase().includes(q);
+        const matchShow = (ad.showTitle || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchAdvertiser && !matchShow) return false;
+      }
+
+      return true;
+    });
+  }, [ads, selectedShowId, searchQuery]);
+
+  const ganttWindow = useMemo(
+    () =>
+      computeGanttWindow({
+        preset: ganttRangePreset,
+        today: todayDate,
+        panDays: ganttPanDays,
+        flightAds: activeFlightAdsForRange,
+      }),
+    [ganttRangePreset, todayDate, ganttPanDays, activeFlightAdsForRange]
+  );
+
+  const timelineStartDate = ganttWindow.start;
+  const visibleDayCount = ganttWindow.dayCount;
+
+  const dayWidth = useMemo(
+    () => fitDayWidth(ganttTrackWidthPx, visibleDayCount),
+    [ganttTrackWidthPx, visibleDayCount]
   );
 
   const scrollGanttToDate = useCallback(
     (dateStr: string, smooth = true) => {
       const el = scrollContainerRef.current;
       if (!el) return;
-      const startStr = toISODateString(ganttWindowStart);
+      const startStr = toISODateString(timelineStartDate);
       const diff = diffCalendarDays(startStr, dateStr);
       el.scrollTo({
         left: Math.max(0, diff * dayWidth - el.clientWidth / 3),
         behavior: smooth ? 'smooth' : 'auto',
       });
     },
-    [ganttWindowStart, dayWidth]
+    [timelineStartDate, dayWidth]
   );
 
   const shiftGanttWindow = (dayDelta: number) => {
-    setGanttWindowStart((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + dayDelta);
-      return next;
-    });
+    setGanttPanDays((prev) => prev + dayDelta);
   };
 
   const jumpGanttToToday = () => {
-    setGanttWindowStart(defaultGanttWindowStart(todayDate));
+    setGanttPanDays(0);
     requestAnimationFrame(() => scrollGanttToDate(todayStr));
   };
+
+  useEffect(() => {
+    if (subView !== 'gantt_timeline') return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setGanttTrackWidthPx(Math.max(280, el.clientWidth - GANTT_LABEL_COL_PX));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [subView]);
 
   useEffect(() => {
     if (subView === 'gantt_timeline') {
       requestAnimationFrame(() => scrollGanttToDate(todayStr, false));
     }
-  }, [subView, ganttWindowStart, dayWidth, scrollGanttToDate, todayStr]);
+  }, [subView, timelineStartDate, dayWidth, scrollGanttToDate, todayStr]);
 
-  // Timeline window for Gantt — user can pan with prev/next controls
-  const { timelineStartDate, dayList, weekHeaders } = useMemo(() => {
-    const start = new Date(ganttWindowStart);
+  // Timeline window for Gantt — preset range + optional pan
+  const { dayList, weekHeaders } = useMemo(() => {
+    const start = new Date(timelineStartDate);
 
     const days: GanttDay[] = [];
 
@@ -221,7 +259,7 @@ export function ClientTimelineListView({
     let currentWeekStart = 0;
     let currentWeekTitle = '';
 
-    for (let i = 0; i < GANTT_VISIBLE_DAYS; i++) {
+    for (let i = 0; i < visibleDayCount; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
 
@@ -265,11 +303,10 @@ export function ClientTimelineListView({
     }
 
     return {
-      timelineStartDate: start,
       dayList: days,
       weekHeaders: weeks,
     };
-  }, [ganttWindowStart]);
+  }, [timelineStartDate, visibleDayCount, todayStr]);
 
   const timelineStartStr = toISODateString(timelineStartDate);
   const totalTimelineWidth = dayList.length * dayWidth;
@@ -347,9 +384,7 @@ export function ClientTimelineListView({
     return { totalDays, elapsedDays, percentage };
   };
 
-  const ganttRangeLabel = dayList.length
-    ? `${formatShortDate(dayList[0].dateStr)} – ${formatShortDate(dayList[dayList.length - 1].dateStr)}`
-    : '';
+  const ganttRangeLabel = ganttWindow.rangeSummary;
 
   return (
     <div
@@ -749,7 +784,9 @@ export function ClientTimelineListView({
               <span className="font-bold text-zinc-100 uppercase tracking-wider text-sm">
                 Broadcast timeline (Gantt)
               </span>
-              <span className="text-zinc-400 font-mono text-sm">Range: {ganttRangeLabel}</span>
+              <span className="text-zinc-400 font-mono text-sm">
+                {ganttWindow.presetLabel}: {ganttRangeLabel}
+              </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -815,19 +852,23 @@ export function ClientTimelineListView({
               </span>
 
               <div className="flex flex-wrap items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 max-w-full">
-                <span className="text-[10px] text-zinc-500 font-bold px-1.5 shrink-0">Day grid:</span>
-                {GANTT_DAY_SCALES.map((z) => (
+                <span className="text-[10px] text-zinc-500 font-bold px-1.5 shrink-0">Time range:</span>
+                {GANTT_RANGE_PRESETS.map((preset) => (
                   <button
-                    key={z.width}
+                    key={preset.id}
                     type="button"
-                    onClick={() => setDayWidth(z.width)}
+                    title={preset.label}
+                    onClick={() => {
+                      setGanttRangePreset(preset.id);
+                      setGanttPanDays(0);
+                    }}
                     className={`px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
-                      dayWidth === z.width
+                      ganttRangePreset === preset.id
                         ? 'bg-indigo-600 text-white shadow'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
-                    {z.label}
+                    {preset.shortLabel}
                   </button>
                 ))}
               </div>
